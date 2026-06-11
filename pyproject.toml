@@ -32,6 +32,16 @@ bayes-design-experiment = "bayes_design.experiment_cli:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/bayes_design"]
+# Keep the wheel slim: ship code + only the ProteinMPNN weight the default mode
+# loads. Training data, notebooks, and download-on-demand weights are excluded.
+exclude = [
+    "**/*.ipynb",
+    "**/*.csv",
+    "src/bayes_design/ligand_mpnn/model_params/**",
+    "src/bayes_design/protein_mpnn/vanilla_model_weights/v_48_002.pt",
+    "src/bayes_design/protein_mpnn/vanilla_model_weights/v_48_010.pt",
+    "src/bayes_design/protein_mpnn/vanilla_model_weights/v_48_020.pt",
+]
 
 [tool.ruff]
 line-length = 120
