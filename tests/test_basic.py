@@ -58,6 +58,41 @@ def test_combined_model_two_term_matches_ratio():
     assert torch.allclose(got, expected, atol=1e-5)
 
 
+def test_kabsch_alignment_recovers_rigid_transform():
+    """Kabsch alignment undoes an arbitrary rotation+translation."""
+    from bayes_design.experiments.scrmsd import kabsch_alignment
+
+    rng = np.random.default_rng(0)
+    coords1 = rng.random((10, 3))
+    alpha, beta, gamma = np.pi / 4, np.pi / 3, np.pi / 6
+    rot = np.array(
+        [
+            [
+                np.cos(alpha) * np.cos(beta),
+                np.cos(alpha) * np.sin(beta) * np.sin(gamma) - np.sin(alpha) * np.cos(gamma),
+                np.cos(alpha) * np.sin(beta) * np.cos(gamma) + np.sin(alpha) * np.sin(gamma),
+            ],
+            [
+                np.sin(alpha) * np.cos(beta),
+                np.sin(alpha) * np.sin(beta) * np.sin(gamma) + np.cos(alpha) * np.cos(gamma),
+                np.sin(alpha) * np.sin(beta) * np.cos(gamma) - np.cos(alpha) * np.sin(gamma),
+            ],
+            [-np.sin(beta), np.cos(beta) * np.sin(gamma), np.cos(beta) * np.cos(gamma)],
+        ]
+    )
+    coords2 = np.dot(rot, coords1.T).T + rng.random(3)
+    aligned = kabsch_alignment(coords1, coords2)
+    assert not np.allclose(coords1, coords2)
+    assert np.allclose(coords1, aligned)
+
+
+def test_calculate_identity():
+    from bayes_design.experiments.scrmsd import calculate_identity
+
+    assert calculate_identity("ACDE", "ACDE") == 100.0
+    assert calculate_identity("ACDE", "ACDX") == 75.0
+
+
 def test_fixed_position_mask():
     # Fix residues 3-5 and 8-8 (1-indexed, inclusive) in a length-10 sequence.
     mask = get_fixed_position_mask(fixed_position_list=[3, 5, 8, 8], seq_len=10)

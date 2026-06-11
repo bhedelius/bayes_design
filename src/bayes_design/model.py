@@ -666,6 +666,10 @@ BACKENDS = {
 
 # An objective is a list of term specs {backend, weight, context?, **backend_kwargs}.
 # Adding a design mode is one row here; adding a model is one BACKENDS entry.
+# Invariant: the natural-sequence prior cancels only when the sum of the
+# numerator (positive) weights equals the magnitude of the denominator (negative)
+# weights. e.g. the ensemble below averages two likelihoods (0.5 + 0.5) against one
+# marginal (-1); a product-of-experts variant would be +1, +1 against -2.
 OBJECTIVES = {
     # p(struct|seq)        ∝ p(seq|struct)         / p(seq)
     "bayes_design": [
