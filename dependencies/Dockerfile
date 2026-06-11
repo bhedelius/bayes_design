@@ -35,9 +35,9 @@ RUN pip3 install --upgrade pip
 
 RUN pip3 install torch --extra-index-url https://download.pytorch.org/whl/cu116
 
-RUN ls /tmp/
-COPY requirements.txt /tmp/requirements.txt
-RUN pip3 install -r /tmp/requirements.txt
+# Build context is the repo root: copy and install the package (deps from pyproject.toml).
+COPY . /code
+RUN pip3 install /code
 
 
 # Install hhblits

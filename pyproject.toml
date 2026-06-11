@@ -1,0 +1,47 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "bayes-design"
+version = "0.1.0"
+description = "Bayesian protein sequence design via probability-model ratios (BayesDesign)."
+readme = "README.md"
+requires-python = ">=3.9"
+license = { file = "LICENSE" }
+dependencies = [
+    "torch",
+    "transformers",
+    "tokenizers",
+    "sentencepiece",
+    "numpy",
+    "biopython",
+    "tr-rosetta-pytorch",
+    "matplotlib",
+]
+
+[project.optional-dependencies]
+dev = ["ruff", "mypy", "pytest"]
+train = ["datasets"]
+
+[project.scripts]
+bayes-design = "bayes_design.cli:main"
+bayes-design-experiment = "bayes_design.experiment_cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/bayes_design"]
+
+[tool.ruff]
+line-length = 120
+# Exclude vendored ProteinMPNN and the adapted HuggingFace training script.
+extend-exclude = ["src/bayes_design/protein_mpnn", "src/bayes_design/train_xlnet.py"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+# Long argparse help strings are intentional; don't enforce line length.
+ignore = ["E501"]
+
+[tool.mypy]
+python_version = "3.9"
+ignore_missing_imports = true
+exclude = ["src/bayes_design/protein_mpnn/", "src/bayes_design/train_xlnet.py"]

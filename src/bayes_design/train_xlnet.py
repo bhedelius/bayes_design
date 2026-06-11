@@ -1,5 +1,5 @@
-import argparse
 import os.path
+
 #!/usr/bin/env python
 # coding=utf-8
 # Copyright 2020 The HuggingFace Team All rights reserved.
@@ -29,9 +29,8 @@ from itertools import chain
 from typing import Optional
 
 import datasets
-from datasets import load_dataset
-
 import transformers
+from datasets import load_dataset
 from transformers import (
     AutoConfig,
     AutoTokenizer,
@@ -46,7 +45,6 @@ from transformers import (
 from transformers.trainer_utils import get_last_checkpoint
 from transformers.utils import check_min_version, send_example_telemetry
 from transformers.utils.versions import require_version
-
 
 # Will error if the minimal version of Transformers is not installed. Remove at your own risks.
 check_min_version("4.27.0.dev0")
