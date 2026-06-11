@@ -8,8 +8,8 @@ import numpy as np
 import torch
 
 from bayes_design.decode import decode_algorithm_dict, decode_order_dict
-from bayes_design.model import model_dict
-from bayes_design.utils import get_fixed_position_mask, get_protein
+from bayes_design.model import build_model, model_dict, objective_uses_context
+from bayes_design.utils import get_fixed_position_mask, get_ligand, get_protein, seq_struct_from_ligand
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -58,20 +58,43 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--seed", help="The random seed to use", default=0, type=int)
     parser.add_argument("--results_dir", help="The directory to save results to", default="./results")
     parser.add_argument("--exclude_aa", nargs="+", default=[])
+    parser.add_argument(
+        "--ligand_file",
+        help="Optional PDB whose HETATM records supply the ligand atoms (ligand modes); "
+        "defaults to the protein PDB's own HETATM records.",
+        default=None,
+    )
+    parser.add_argument(
+        "--decoy_id",
+        help="PDB id of the decoy/competing fold for multi-state modes (e.g. fold_specificity).",
+        default=None,
+    )
+    parser.add_argument("--ligand_file_b", help="PDB with the off-target ligand for ligand_selectivity.", default=None)
     return parser
 
 
 def example_design(args: argparse.Namespace) -> dict:
     device = torch.device(f"cuda:{args.device}" if (torch.cuda.is_available()) else "cpu")
 
-    if args.model_name == "bayes_design":
-        prob_model = model_dict[args.model_name](device=device, bayes_balance_factor=args.bayes_balance_factor)
-    else:
-        prob_model = model_dict[args.model_name](device=device)
-
     # Get sequence and structure of protein to redesign
     seq, struct = get_protein(args.protein_id)
     orig_seq = seq
+
+    # Context-aware objectives bind parsed structures/ligands at construction. Source
+    # seq/struct from the same LigandMPNN parse so residue counts stay consistent.
+    contexts = {}
+    if objective_uses_context(args.model_name):
+        contexts["main"] = get_ligand(args.protein_id, ligand_file=args.ligand_file)
+        seq, struct = seq_struct_from_ligand(contexts["main"])
+        orig_seq = seq
+        if args.decoy_id is not None:
+            contexts["decoy"] = get_ligand(args.decoy_id)
+        if args.ligand_file_b is not None:
+            contexts["ligand_b"] = get_ligand(args.protein_id, ligand_file=args.ligand_file_b)
+
+    prob_model = build_model(
+        args.model_name, device=device, contexts=contexts, bayes_balance_factor=args.bayes_balance_factor
+    )
 
     fixed_position_mask = get_fixed_position_mask(fixed_position_list=args.fixed_positions, seq_len=len(seq))
     masked_seq = "".join(["-" if not fixed else char for char, fixed in zip(seq, fixed_position_mask)])

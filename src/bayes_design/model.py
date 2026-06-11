@@ -2,6 +2,7 @@ import os
 import pickle as pkl
 import re
 import subprocess
+from abc import ABC, abstractmethod
 from pathlib import Path
 
 import numpy as np
@@ -16,7 +17,20 @@ from .protein_mpnn.protein_mpnn_utils import ProteinMPNN
 from .utils import AMINO_ACID_ORDER
 
 
-class XLNetWrapper(nn.Module):
+class ProbabilityModel(nn.Module, ABC):
+    """Shared interface so any model is interchangeable as a term in a
+    `CombinedModel`. Structure/ligand context is bound at construction, keeping
+    ``forward(seq, struct, decode_order, token_to_decode, ...) -> (N x 20)``
+    uniform across models (the decode loop relies on this)."""
+
+    @abstractmethod
+    def forward(
+        self, seq, struct, decode_order, token_to_decode, mask_type="bidirectional_autoregressive", temperature=1.0
+    ):
+        raise NotImplementedError
+
+
+class XLNetWrapper(ProbabilityModel):
     def __init__(self, model_name="Rostlab/prot_xlnet", device=None):
         super().__init__()
         if device is not None:
@@ -177,7 +191,7 @@ class XLNetWrapper(nn.Module):
         return probs
 
 
-class ProteinMPNNWrapper(nn.Module):
+class ProteinMPNNWrapper(ProbabilityModel):
     def __init__(self, device=None):
         super().__init__()
         if device is not None:
@@ -283,8 +297,24 @@ class ProteinMPNNWrapper(nn.Module):
         # N x 20
 
 
-class BayesDesign(nn.Module):
-    def __init__(self, device=None, bayes_balance_factor=0.002, **kwargs):
+class MPNNWrapper(ProbabilityModel):
+    """Structure-conditioned model backed by the vendored LigandMPNN code.
+
+    A single class covers the LigandMPNN ``model_type`` variants we use:
+    ``ligand_mpnn`` (p(seq | struct, ligand)), ``soluble_mpnn``, and a
+    context-bound ``protein_mpnn``. Its structural context (the parsed input dict
+    from `bayes_design.utils.get_ligand`) is bound at construction, so the same
+    model can be used against different structures/ligands as different terms of a
+    `CombinedModel` (multi-state / negative design). ``use_ligand=False`` zeroes
+    the ligand-atom mask via ``featurize(use_atom_context=False)`` — the ligand-free
+    denominator for ligand-specificity.
+
+    Decode order is honored by crafting ``randn`` so LigandMPNN's internal
+    ``argsort((chain_mask + 1e-4) * |randn|)`` reproduces it, and every feature is
+    pre-batched to B=N (with batch_size=1) so the model's internal repeats no-op.
+    """
+
+    def __init__(self, device=None, model_type="ligand_mpnn", checkpoint_path=None, context=None, use_ligand=True):
         super().__init__()
         if device is not None:
             self.device = device
@@ -293,39 +323,208 @@ class BayesDesign(nn.Module):
         else:
             self.device = torch.device("cpu")
 
-        self.seq_model = XLNetWrapper(device=device, **kwargs)
-        self.seq_struct_model = ProteinMPNNWrapper(device=device, **kwargs)
+        from .ligand_mpnn import data_utils as ligand_data_utils
+        from .ligand_mpnn.model_utils import ProteinMPNN as LigandMPNN
 
-        self.bayes_balance_factor = bayes_balance_factor
+        self._featurize = ligand_data_utils.featurize
+        self.model_type = model_type
+        self.context = context
+        self.use_ligand = use_ligand
+        self._features = None
+
+        checkpoint = torch.load(checkpoint_path, map_location=self.device)
+        # Ligand checkpoints store atom_context_num; protein/soluble ones do not.
+        self.atom_context_num = checkpoint.get("atom_context_num", 1)
+        self.model = LigandMPNN(
+            node_features=128,
+            edge_features=128,
+            hidden_dim=128,
+            num_encoder_layers=3,
+            num_decoder_layers=3,
+            k_neighbors=checkpoint["num_edges"],
+            atom_context_num=self.atom_context_num,
+            model_type=model_type,
+            device=self.device,
+            ligand_mpnn_use_side_chain_context=False,
+        )
+        self.model.to(self.device)
+        self.model.load_state_dict(checkpoint["model_state_dict"])
+        self.model.eval()
+        print(f"{model_type} loaded (use_ligand={use_ligand})")
+
+    def _static_features(self):
+        """Featurize the bound structure/ligand once and cache it (it is constant
+        for the run; only S/chain_mask/randn vary per forward call)."""
+        if self._features is None:
+            if self.context is None:
+                raise ValueError("MPNNWrapper requires a parsed context; see bayes_design.utils.get_ligand().")
+            self._features = self._featurize(
+                self.context,
+                number_of_ligand_atoms=self.atom_context_num,
+                use_atom_context=self.use_ligand,
+                model_type=self.model_type,
+            )
+        return self._features
 
     def forward(
         self, seq, struct, decode_order, token_to_decode, mask_type="bidirectional_autoregressive", temperature=1.0
     ):
-        p_seq = self.seq_model(
-            seq=seq,
-            decode_order=decode_order,
-            token_to_decode=token_to_decode,
-            mask_type=mask_type,
-            temperature=temperature,
-        ).clone()
-        p_seq_struct = self.seq_struct_model(
-            seq=seq,
-            struct=struct,
-            decode_order=decode_order,
-            token_to_decode=token_to_decode,
-            mask_type=mask_type,
-            temperature=temperature,
-        ).clone()
+        N = len(token_to_decode)
+        L = len(seq[0])
 
-        # Add a "balance factor" so that we don't end up with large probability ratios at the tails of the distributions
-        p_seq += self.bayes_balance_factor
-        p_seq_struct += self.bayes_balance_factor
-        balanced_logits = p_seq_struct / p_seq
+        seq = [re.sub(r"-", "X", s) for s in seq]
+        seq = torch.tensor([[AMINO_ACID_ORDER.index(aa) for aa in s] for s in seq]).to(self.device)
 
-        # Normalize probabilities
-        p_struct_seq = balanced_logits / balanced_logits.sum(dim=-1).unsqueeze(-1)
+        with torch.no_grad():
+            if mask_type != "bidirectional_mlm":
+                decode_orders = torch.tensor(decode_order).expand(N, L).clone()
+            else:
+                decode_orders = torch.tensor(
+                    np.array(
+                        [
+                            np.append(np.delete(decode_order, decode_order.index(tok)).tolist(), tok)
+                            for tok in token_to_decode
+                        ]
+                    )
+                )
+            decode_orders = decode_orders.to(self.device)
 
-        return p_struct_seq
+            base = self._static_features()
+            assert base["S"].shape[1] == L, "Sequence length must match the number of residues in the context"
+
+            def _batch(t):
+                return t.expand(N, *t.shape[1:]).clone().to(self.device)
+
+            feature_dict = {
+                k: (_batch(v) if torch.is_tensor(v) and v.dim() >= 1 and v.shape[0] == 1 else v)
+                for k, v in base.items()
+            }
+            feature_dict["S"] = seq
+            feature_dict["chain_mask"] = torch.ones(N, L, device=self.device)
+            feature_dict["batch_size"] = 1
+            feature_dict["symmetry_residues"] = [[]]
+
+            # Craft randn so argsort(|randn|) == decode_order for each row.
+            randn = torch.zeros(N, L, device=self.device)
+            ranks = torch.arange(1, L + 1, device=self.device, dtype=randn.dtype)
+            randn.scatter_(1, decode_orders.long(), ranks.expand(N, L))
+            feature_dict["randn"] = randn
+
+            logits = self.model.score(feature_dict, use_sequence=True)["logits"]  # N x L x 21
+            probs = torch.nn.functional.softmax(logits / temperature, dim=-1)
+            probs = probs[:, :, :-1]  # drop 'X'
+            probs = probs / probs.sum(dim=-1, keepdim=True)
+
+        return probs[range(N), token_to_decode]
+
+
+class ESMIF1Wrapper(ProbabilityModel):
+    """ESM-IF1 inverse folding likelihood, p(seq | struct).
+
+    Uses the call-time backbone coordinates (N, CA, C from ``struct[:, :3]``); no
+    context is bound. ESM-IF1's decoder is autoregressive in sequence index, so a
+    single teacher-forced forward gives, at each position, p(residue_i | struct,
+    residues_{<i}). This matches the default ``n_to_c`` decode order (each position
+    conditions on its index-predecessors); other decode orders are approximated.
+    Requires the optional ``esm`` extra (``pip install -e .[esm]``).
+    """
+
+    def __init__(self, device=None):
+        super().__init__()
+        if device is not None:
+            self.device = device
+        elif torch.cuda.is_available():
+            self.device = torch.device("cuda:0")
+        else:
+            self.device = torch.device("cpu")
+
+        import esm
+        from esm.inverse_folding.util import CoordBatchConverter
+
+        self.model, self.alphabet = esm.pretrained.esm_if1_gvp4_t16_142M_UR50()
+        self.model = self.model.to(self.device).eval()
+        self.batch_converter = CoordBatchConverter(self.alphabet)
+        # Map our 20 canonical amino acids (excluding 'X') to ESM-IF1 logit columns.
+        self.canonical_idx_to_esmif_idx = torch.tensor(
+            [self.alphabet.get_idx(aa) for aa in AMINO_ACID_ORDER[:-1]], device=self.device
+        )
+        print("ESM-IF1 loaded")
+
+    def forward(
+        self, seq, struct, decode_order, token_to_decode, mask_type="bidirectional_autoregressive", temperature=1.0
+    ):
+        N = len(token_to_decode)
+        coords = struct[:, :3, :].detach().cpu().numpy()  # L x 3 x 3 (N, CA, C)
+        seqs = [re.sub(r"-", "X", s) for s in seq]
+        batch = [(coords, None, s) for s in seqs]
+
+        with torch.no_grad():
+            coords_b, confidence, _, tokens, padding_mask = self.batch_converter(batch, device=self.device)
+            prev_output_tokens = tokens[:, :-1]
+            logits, _ = self.model.forward(coords_b, padding_mask, confidence, prev_output_tokens)
+            # logits: N x alphabet x (L+1); residue position idx -> logits[:, :, idx]
+            tok = token_to_decode.to(self.device)
+            sel = logits[torch.arange(N, device=self.device), :, tok]  # N x alphabet
+            sel = sel[:, self.canonical_idx_to_esmif_idx]  # N x 20
+            probs = torch.nn.functional.softmax(sel / temperature, dim=-1)
+            probs = probs / probs.sum(dim=-1, keepdim=True)
+
+        return probs
+
+
+class CombinedModel(ProbabilityModel):
+    """Weighted log-linear combination of probability models, renormalized.
+
+    ``p ∝ exp(Σ_i w_i · log(p_i + balance))`` over the 20 amino acids. Positive
+    weights are "numerator" terms, negative weights "denominator" terms. The
+    two-term ``[(num, +1), (den, -1)]`` case reproduces the original BayesDesign
+    ratio ``(p_num + b) / (p_den + b)``; more terms express product-of-experts and
+    multi-state / negative design (see `OBJECTIVES`).
+    """
+
+    def __init__(self, terms, device=None, balance=0.002):
+        super().__init__()
+        if device is not None:
+            self.device = device
+        elif torch.cuda.is_available():
+            self.device = torch.device("cuda:0")
+        else:
+            self.device = torch.device("cpu")
+        self.terms = terms  # list of (ProbabilityModel, float weight)
+        self.balance = balance
+
+    def forward(
+        self, seq, struct, decode_order, token_to_decode, mask_type="bidirectional_autoregressive", temperature=1.0
+    ):
+        log_score = None
+        for model, weight in self.terms:
+            probs = model(
+                seq=seq,
+                struct=struct,
+                decode_order=decode_order,
+                token_to_decode=token_to_decode,
+                mask_type=mask_type,
+                temperature=temperature,
+            )
+            term = weight * torch.log(probs + self.balance)
+            log_score = term if log_score is None else log_score + term
+
+        log_score = log_score - log_score.max(dim=-1, keepdim=True).values
+        score = torch.exp(log_score)
+        return score / score.sum(dim=-1, keepdim=True)
+
+
+class BayesDesign(CombinedModel):
+    """Backward-compatible 2-term objective: p(seq|struct) / p(seq).
+
+    Defaults to ProteinMPNN / XLNet, matching the original BayesDesign, but accepts
+    any numerator/denominator `ProbabilityModel`s.
+    """
+
+    def __init__(self, numerator=None, denominator=None, device=None, bayes_balance_factor=0.002, **kwargs):
+        num = numerator if numerator is not None else ProteinMPNNWrapper(device=device)
+        den = denominator if denominator is not None else XLNetWrapper(device=device)
+        super().__init__(terms=[(num, 1.0), (den, -1.0)], device=device, balance=bayes_balance_factor)
 
 
 class TrRosettaWrapper:
@@ -407,10 +606,156 @@ class PSSM:
         return self.pssm[token_to_decode, :]
 
 
+_LIGAND_DIR = Path(__file__).parent / "ligand_mpnn" / "model_params"
+
+
+def _backend_xlnet(device, context=None, **kwargs):
+    return XLNetWrapper(device=device)
+
+
+def _backend_protein_mpnn(device, context=None, **kwargs):
+    # Legacy vanilla ProteinMPNN — uses the call-time struct, not a bound context.
+    return ProteinMPNNWrapper(device=device)
+
+
+def _backend_protein_mpnn_ctx(device, context=None, **kwargs):
+    # Context-bound ProteinMPNN (via LigandMPNN code) for multi-state objectives.
+    return MPNNWrapper(
+        device=device,
+        model_type="protein_mpnn",
+        checkpoint_path=_LIGAND_DIR / "proteinmpnn_v_48_020.pt",
+        context=context,
+        use_ligand=False,
+    )
+
+
+def _backend_ligand_mpnn(device, context=None, use_ligand=True, **kwargs):
+    return MPNNWrapper(
+        device=device,
+        model_type="ligand_mpnn",
+        checkpoint_path=_LIGAND_DIR / "ligandmpnn_v_32_010_25.pt",
+        context=context,
+        use_ligand=use_ligand,
+    )
+
+
+def _backend_soluble_mpnn(device, context=None, **kwargs):
+    return MPNNWrapper(
+        device=device,
+        model_type="soluble_mpnn",
+        checkpoint_path=_LIGAND_DIR / "solublempnn_v_48_020.pt",
+        context=context,
+        use_ligand=False,
+    )
+
+
+def _backend_esm_if1(device, context=None, **kwargs):
+    # Uses the call-time struct (N, CA, C), not a bound context.
+    return ESMIF1Wrapper(device=device)
+
+
+# Each backend builder takes (device, context, **kwargs) and returns a ProbabilityModel.
+BACKENDS = {
+    "xlnet": _backend_xlnet,
+    "protein_mpnn": _backend_protein_mpnn,
+    "protein_mpnn_ctx": _backend_protein_mpnn_ctx,
+    "ligand_mpnn": _backend_ligand_mpnn,
+    "soluble_mpnn": _backend_soluble_mpnn,
+    "esm_if1": _backend_esm_if1,
+}
+
+# An objective is a list of term specs {backend, weight, context?, **backend_kwargs}.
+# Adding a design mode is one row here; adding a model is one BACKENDS entry.
+OBJECTIVES = {
+    # p(struct|seq)        ∝ p(seq|struct)         / p(seq)
+    "bayes_design": [
+        {"backend": "protein_mpnn", "weight": 1.0},
+        {"backend": "xlnet", "weight": -1.0},
+    ],
+    # p(struct,ligand|seq) ∝ p(seq|struct,ligand)  / p(seq)
+    "bayes_design_ligand": [
+        {"backend": "ligand_mpnn", "weight": 1.0, "context": "main", "use_ligand": True},
+        {"backend": "xlnet", "weight": -1.0},
+    ],
+    # p(ligand|seq,struct) ∝ p(seq|struct,ligand)  / p(seq|struct)   [same LigandMPNN, ligand masked]
+    "bayes_design_ligand_specificity": [
+        {"backend": "ligand_mpnn", "weight": 1.0, "context": "main", "use_ligand": True},
+        {"backend": "ligand_mpnn", "weight": -1.0, "context": "main", "use_ligand": False},
+    ],
+    # Solubility-steered fold design (SolubleMPNN as the likelihood).
+    "bayes_design_soluble": [
+        {"backend": "soluble_mpnn", "weight": 1.0, "context": "main"},
+        {"backend": "xlnet", "weight": -1.0},
+    ],
+    # Multi-state / negative design: prefer fold A (main) over decoy fold B.
+    "fold_specificity": [
+        {"backend": "protein_mpnn_ctx", "weight": 1.0, "context": "main"},
+        {"backend": "protein_mpnn_ctx", "weight": -1.0, "context": "decoy"},
+    ],
+    # Ligand selectivity: bind the main ligand, not ligand B.
+    "ligand_selectivity": [
+        {"backend": "ligand_mpnn", "weight": 1.0, "context": "main", "use_ligand": True},
+        {"backend": "ligand_mpnn", "weight": -1.0, "context": "ligand_b", "use_ligand": True},
+    ],
+    # ESM-IF1 inverse-folding likelihood instead of ProteinMPNN.
+    "bayes_design_esm_if1": [
+        {"backend": "esm_if1", "weight": 1.0},
+        {"backend": "xlnet", "weight": -1.0},
+    ],
+    # Product-of-experts likelihood: ProteinMPNN and ESM-IF1 together.
+    "bayes_design_ensemble": [
+        {"backend": "protein_mpnn", "weight": 0.5},
+        {"backend": "esm_if1", "weight": 0.5},
+        {"backend": "xlnet", "weight": -1.0},
+    ],
+}
+
+
+def _build_term(spec, device, contexts):
+    spec = dict(spec)
+    backend = spec.pop("backend")
+    weight = spec.pop("weight")
+    context = contexts.get(spec.pop("context", None))
+    model = BACKENDS[backend](device=device, context=context, **spec)
+    return model, weight
+
+
+def build_objective(name, device=None, contexts=None, bayes_balance_factor=0.002):
+    contexts = contexts or {}
+    terms = [_build_term(spec, device, contexts) for spec in OBJECTIVES[name]]
+    return CombinedModel(terms, device=device, balance=bayes_balance_factor)
+
+
+def build_model(name, device=None, contexts=None, bayes_balance_factor=0.002):
+    """Single entry point used by the CLI: build any objective or backend by name."""
+    if name in OBJECTIVES:
+        return build_objective(name, device=device, contexts=contexts, bayes_balance_factor=bayes_balance_factor)
+    if name in BACKENDS:
+        return BACKENDS[name](device=device, context=(contexts or {}).get("main"))
+    return model_dict[name](device=device)
+
+
+def objective_uses_context(name):
+    """Whether the named objective/backend conditions on a parsed structure context."""
+    if name in OBJECTIVES:
+        return any(spec.get("context") for spec in OBJECTIVES[name])
+    return name in ("ligand_mpnn", "soluble_mpnn", "protein_mpnn_ctx")
+
+
 model_dict = {
     "xlnet": XLNetWrapper,
     "protein_mpnn": ProteinMPNNWrapper,
+    "ligand_mpnn": MPNNWrapper,
+    "soluble_mpnn": MPNNWrapper,
+    "esm_if1": ESMIF1Wrapper,
     "bayes_design": BayesDesign,
+    "bayes_design_ligand": CombinedModel,
+    "bayes_design_ligand_specificity": CombinedModel,
+    "bayes_design_soluble": CombinedModel,
+    "bayes_design_esm_if1": CombinedModel,
+    "bayes_design_ensemble": CombinedModel,
+    "fold_specificity": CombinedModel,
+    "ligand_selectivity": CombinedModel,
     "pssm": PSSM,
     "trRosetta": TrRosettaWrapper,
 }

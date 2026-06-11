@@ -16,6 +16,7 @@ dependencies = [
     "sentencepiece",
     "numpy",
     "biopython",
+    "prody",
     "tr-rosetta-pytorch",
     "matplotlib",
 ]
@@ -23,6 +24,7 @@ dependencies = [
 [project.optional-dependencies]
 dev = ["ruff", "mypy", "pytest"]
 train = ["datasets"]
+esm = ["fair-esm", "torch-geometric", "torch-scatter", "biotite"]
 
 [project.scripts]
 bayes-design = "bayes_design.cli:main"
@@ -33,8 +35,8 @@ packages = ["src/bayes_design"]
 
 [tool.ruff]
 line-length = 120
-# Exclude vendored ProteinMPNN and the adapted HuggingFace training script.
-extend-exclude = ["src/bayes_design/protein_mpnn", "src/bayes_design/train_xlnet.py"]
+# Exclude vendored model code and the adapted HuggingFace training script.
+extend-exclude = ["src/bayes_design/protein_mpnn", "src/bayes_design/ligand_mpnn", "src/bayes_design/train_xlnet.py"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]
@@ -44,4 +46,4 @@ ignore = ["E501"]
 [tool.mypy]
 python_version = "3.9"
 ignore_missing_imports = true
-exclude = ["src/bayes_design/protein_mpnn/", "src/bayes_design/train_xlnet.py"]
+exclude = ["src/bayes_design/protein_mpnn/", "src/bayes_design/ligand_mpnn/", "src/bayes_design/train_xlnet.py"]

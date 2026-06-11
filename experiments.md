@@ -12,35 +12,35 @@ Original sequence with mask, preserving fixed residues:
 ---------------------------------G
 ```
 Sequence Stats:
-- BayesDesign LogP: -89.15804301725373 `python3 experiment.py compare_seq_probs --protein_id 1PIN --model_name bayes_design --decode_order n_to_c --fixed_positions 34 34 --sequences KLPPGWEKRMSRSSGRVYYFNHITNASQFERPSG`
-- ProteinMPNN LogP: -64.23751689474135 `python3 experiment.py compare_seq_probs --protein_id 1PIN --model_name protein_mpnn --decode_order n_to_c --fixed_positions 34 34 --sequences KLPPGWEKRMSRSSGRVYYFNHITNASQFERPSG`
+- BayesDesign LogP: -89.15804301725373 `bayes-design-experiment compare_seq_probs --protein_id 1PIN --model_name bayes_design --decode_order n_to_c --fixed_positions 34 34 --sequences KLPPGWEKRMSRSSGRVYYFNHITNASQFERPSG`
+- ProteinMPNN LogP: -64.23751689474135 `bayes-design-experiment compare_seq_probs --protein_id 1PIN --model_name protein_mpnn --decode_order n_to_c --fixed_positions 34 34 --sequences KLPPGWEKRMSRSSGRVYYFNHITNASQFERPSG`
 
 #### BayesDesign
 Command:
 ```
-python3 design.py --model_name bayes_design --protein_id 1PIN --decode_order n_to_c --decode_algorithm beam_medium --n_beams 128 --fixed_positions 34 34
+bayes-design --model_name bayes_design --protein_id 1PIN --decode_order n_to_c --decode_algorithm beam_medium --n_beams 128 --fixed_positions 34 34
 ```
 Sequence:
 ```
 MLPEGWVKQRNPITGEDVCFNTLTHEMTKFEPQG
 ```
 Sequence Stats:
-- BayesDesign LogP: -31.573002420457204 `python3 experiment.py compare_seq_probs --protein_id 1PIN --model_name bayes_design --decode_order n_to_c --fixed_positions 34 34 --sequences MLPEGWVKQRNPITGEDVCFNTLTHEMTKFEPQG`
-- ProteinMPNN LogP: -52.71265054032396 `python3 experiment.py compare_seq_probs --protein_id 1PIN --model_name protein_mpnn --decode_order n_to_c --fixed_positions 34 34 --sequences MLPEGWVKQRNPITGEDVCFNTLTHEMTKFEPQG`
+- BayesDesign LogP: -31.573002420457204 `bayes-design-experiment compare_seq_probs --protein_id 1PIN --model_name bayes_design --decode_order n_to_c --fixed_positions 34 34 --sequences MLPEGWVKQRNPITGEDVCFNTLTHEMTKFEPQG`
+- ProteinMPNN LogP: -52.71265054032396 `bayes-design-experiment compare_seq_probs --protein_id 1PIN --model_name protein_mpnn --decode_order n_to_c --fixed_positions 34 34 --sequences MLPEGWVKQRNPITGEDVCFNTLTHEMTKFEPQG`
 
 
 #### ProteinMPNN
 Command:
 ```
-python3 design.py --model_name protein_mpnn --protein_id 1PIN --decode_order n_to_c --decode_algorithm beam_medium --n_beams 128 --fixed_positions 34 34
+bayes-design --model_name protein_mpnn --protein_id 1PIN --decode_order n_to_c --decode_algorithm beam_medium --n_beams 128 --fixed_positions 34 34
 ```
 Sequence:
 ```
 TLPEGWVERVDPKTGEKVFFNTKTKEVTKEKPVG
 ```
 Sequence Stats:
-- BayesDesign LogP: -73.07880518446302 `python3 experiment.py compare_seq_probs --protein_id 1PIN --model_name bayes_design --decode_order n_to_c --fixed_positions 34 34 --sequences TLPEGWVERVDPKTGEKVFFNTKTKEVTKEKPVG`
-- ProteinMPNN LogP: -30.726229193957487 `python3 experiment.py compare_seq_probs --protein_id 1PIN --model_name protein_mpnn --decode_order n_to_c --fixed_positions 34 34 --sequences TLPEGWVERVDPKTGEKVFFNTKTKEVTKEKPVG`
+- BayesDesign LogP: -73.07880518446302 `bayes-design-experiment compare_seq_probs --protein_id 1PIN --model_name bayes_design --decode_order n_to_c --fixed_positions 34 34 --sequences TLPEGWVERVDPKTGEKVFFNTKTKEVTKEKPVG`
+- ProteinMPNN LogP: -30.726229193957487 `bayes-design-experiment compare_seq_probs --protein_id 1PIN --model_name protein_mpnn --decode_order n_to_c --fixed_positions 34 34 --sequences TLPEGWVERVDPKTGEKVFFNTKTKEVTKEKPVG`
 
 ### Plastic Degrading Enzyme
 Original Sequence:
@@ -59,7 +59,7 @@ Original sequence with mask, preserving fixed residues:
 #### BayesDesign
 Command:
 ```
-python3 design.py --model_name bayes_design --protein_id plastic_degrading_enzyme --decode_order n_to_c --decode_algorithm beam_medium --n_beams 128 --fixed_positions 138 138 184 184 216 216 65 65 97 97 139 139 162 162 66 67 137 137 211 212 215 215 217 217 223 225 261 261 221 226 181 181 218 218 252 252 269 269 274 281
+bayes-design --model_name bayes_design --protein_id plastic_degrading_enzyme --decode_order n_to_c --decode_algorithm beam_medium --n_beams 128 --fixed_positions 138 138 184 184 216 216 65 65 97 97 139 139 162 162 66 67 137 137 211 212 215 215 217 217 223 225 261 261 221 226 181 181 218 218 252 252 269 269 274 281
 ```
 Sequence:
 ```
@@ -72,7 +72,7 @@ Sequence Stats:
 #### ProteinMPNN
 Command:
 ```
-python3 design.py --model_name protein_mpnn --protein_id plastic_degrading_enzyme --decode_order n_to_c --decode_algorithm beam_medium --n_beams 128 --fixed_positions 138 138 184 184 216 216 65 65 97 97 139 139 162 162 66 67 137 137 211 212 215 215 217 217 223 225 261 261 221 226 181 181 218 218 252 252 269 269 274 281
+bayes-design --model_name protein_mpnn --protein_id plastic_degrading_enzyme --decode_order n_to_c --decode_algorithm beam_medium --n_beams 128 --fixed_positions 138 138 184 184 216 216 65 65 97 97 139 139 162 162 66 67 137 137 211 212 215 215 217 217 223 225 261 261 221 226 181 181 218 218 252 252 269 269 274 281
 ```
 Sequence:
 ```
@@ -93,8 +93,8 @@ Original Sequence with mask, preserving fixed residues:
 --------------------------------------------------------------------------------------------------------------------------------------------
 ```
 Sequence Stats:
-- BayesDesign LogP: -944.9901678422955 `python3 experiment.py compare_seq_probs --protein_id dn47 --model_name bayes_design --decode_order n_to_c --sequences STASSSLSHDALVDTITTAVADAIRISYQSPPGLTVDDAVTKSIADSAADKASAAVRDALSKDLPSPIAISTASSSLSHDALVDTITTAVADAIRISYQSPPGLTVDDAVTKSIADSAADKASAAVRDALSKDLPSPIAI`
-- ProteinMPNN LogP: -268.70771463316356 `python3 experiment.py compare_seq_probs --protein_id dn47 --model_name bayes_design --decode_order n_to_c --sequences STASSSLSHDALVDTITTAVADAIRISYQSPPGLTVDDAVTKSIADSAADKASAAVRDALSKDLPSPIAISTASSSLSHDALVDTITTAVADAIRISYQSPPGLTVDDAVTKSIADSAADKASAAVRDALSKDLPSPIAI`
+- BayesDesign LogP: -944.9901678422955 `bayes-design-experiment compare_seq_probs --protein_id dn47 --model_name bayes_design --decode_order n_to_c --sequences STASSSLSHDALVDTITTAVADAIRISYQSPPGLTVDDAVTKSIADSAADKASAAVRDALSKDLPSPIAISTASSSLSHDALVDTITTAVADAIRISYQSPPGLTVDDAVTKSIADSAADKASAAVRDALSKDLPSPIAI`
+- ProteinMPNN LogP: -268.70771463316356 `bayes-design-experiment compare_seq_probs --protein_id dn47 --model_name bayes_design --decode_order n_to_c --sequences STASSSLSHDALVDTITTAVADAIRISYQSPPGLTVDDAVTKSIADSAADKASAAVRDALSKDLPSPIAISTASSSLSHDALVDTITTAVADAIRISYQSPPGLTVDDAVTKSIADSAADKASAAVRDALSKDLPSPIAI`
 
 Hypotheses:
 - BayesDesign increases specificity
@@ -133,29 +133,29 @@ maximum p(seq|struct) / p(seq) = maximum log p(seq|struct) - log p(seq)
 #### BayesDesign
 Command:
 ```
-python3 design.py --model_name bayes_design --protein_id dn47 --decode_order n_to_c --decode_algorithm beam_medium --n_beams 128
+bayes-design --model_name bayes_design --protein_id dn47 --decode_order n_to_c --decode_algorithm beam_medium --n_beams 128
 ```
 Sequence:
 ```
 LNEHMAISVESLKQKWCEAHEQAVQDAFTRPEGWDIPEQVWQARANKAACLSCQKVNEVMDKLIPPESERKFKNDPLTVDKLCDACCQAVCWAVQEALSEPPGVDWPREQQDHIAQKSAQKTCEGTRAVMNECIEPPKIM
 ```
 Sequence Stats:
-- BayesDesign LogP: -163.4057692585695 `python3 experiment.py compare_seq_probs --protein_id dn47 --model_name bayes_design --decode_order n_to_c --sequences LNEHMAISVESLKQKWCEAHEQAVQDAFTRPEGWDIPEQVWQARANKAACLSCQKVNEVMDKLIPPESERKFKNDPLTVDKLCDACCQAVCWAVQEALSEPPGVDWPREQQDHIAQKSAQKTCEGTRAVMNECIEPPKIM`
-- ProteinMPNN LogP: -165.74089450285308 `python3 experiment.py compare_seq_probs --protein_id dn47 --model_name bayes_design --decode_order n_to_c --sequences LNEHMAISVESLKQKWCEAHEQAVQDAFTRPEGWDIPEQVWQARANKAACLSCQKVNEVMDKLIPPESERKFKNDPLTVDKLCDACCQAVCWAVQEALSEPPGVDWPREQQDHIAQKSAQKTCEGTRAVMNECIEPPKIM`
+- BayesDesign LogP: -163.4057692585695 `bayes-design-experiment compare_seq_probs --protein_id dn47 --model_name bayes_design --decode_order n_to_c --sequences LNEHMAISVESLKQKWCEAHEQAVQDAFTRPEGWDIPEQVWQARANKAACLSCQKVNEVMDKLIPPESERKFKNDPLTVDKLCDACCQAVCWAVQEALSEPPGVDWPREQQDHIAQKSAQKTCEGTRAVMNECIEPPKIM`
+- ProteinMPNN LogP: -165.74089450285308 `bayes-design-experiment compare_seq_probs --protein_id dn47 --model_name bayes_design --decode_order n_to_c --sequences LNEHMAISVESLKQKWCEAHEQAVQDAFTRPEGWDIPEQVWQARANKAACLSCQKVNEVMDKLIPPESERKFKNDPLTVDKLCDACCQAVCWAVQEALSEPPGVDWPREQQDHIAQKSAQKTCEGTRAVMNECIEPPKIM`
 
 
 #### ProteinMPNN
 Command:
 ```
-python3 design.py --model_name protein_mpnn --protein_id dn47 --decode_order n_to_c --decode_algorithm beam_medium --n_beams 128
+bayes-design --model_name protein_mpnn --protein_id dn47 --decode_order n_to_c --decode_algorithm beam_medium --n_beams 128
 ```
 Sequence:
 ```
 PPPKKKPSKEEIIKKVVEAVKKAVKEAFKKPEGLDIPEEEWEKIAEKAAEKAAKKVEEVLKKEIPPEEEKKKKKKKLTKEKIIEKIAKAVKEAVKEALKEPEGLDIPEELAKKIAEEAAKKAKKEVEKVLKEVIPKKKKK
 ```
 Sequence Stats:
-- BayesDesign = ProteinMPNN / XLNet LogP: -578.6982698784458 `python3 experiment.py compare_seq_probs --protein_id dn47 --model_name bayes_design --decode_order n_to_c --sequences PPPKKKPSKEEIIKKVVEAVKKAVKEAFKKPEGLDIPEEEWEKIAEKAAEKAAKKVEEVLKKEIPPEEEKKKKKKKLTKEKIIEKIAKAVKEAVKEALKEPEGLDIPEELAKKIAEEAAKKAKKEVEKVLKEVIPKKKKK`
-- ProteinMPNN LogP: -101.24846088136692 `python3 experiment.py compare_seq_probs --protein_id dn47 --model_name protein_mpnn --decode_order n_to_c --sequences PPPKKKPSKEEIIKKVVEAVKKAVKEAFKKPEGLDIPEEEWEKIAEKAAEKAAKKVEEVLKKEIPPEEEKKKKKKKLTKEKIIEKIAKAVKEAVKEALKEPEGLDIPEELAKKIAEEAAKKAKKEVEKVLKEVIPKKKKK`
+- BayesDesign = ProteinMPNN / XLNet LogP: -578.6982698784458 `bayes-design-experiment compare_seq_probs --protein_id dn47 --model_name bayes_design --decode_order n_to_c --sequences PPPKKKPSKEEIIKKVVEAVKKAVKEAFKKPEGLDIPEEEWEKIAEKAAEKAAKKVEEVLKKEIPPEEEKKKKKKKLTKEKIIEKIAKAVKEAVKEALKEPEGLDIPEELAKKIAEEAAKKAKKEVEKVLKEVIPKKKKK`
+- ProteinMPNN LogP: -101.24846088136692 `bayes-design-experiment compare_seq_probs --protein_id dn47 --model_name protein_mpnn --decode_order n_to_c --sequences PPPKKKPSKEEIIKKVVEAVKKAVKEAFKKPEGLDIPEEEWEKIAEKAAEKAAKKVEEVLKKEIPPEEEKKKKKKKLTKEKIIEKIAKAVKEAVKEALKEPEGLDIPEELAKKIAEEAAKKAKKEVEKVLKEVIPKKKKK`
 
 ### Recently Evolved Rice Protein (dn47_cut2)
 
@@ -164,54 +164,54 @@ Original Sequence:
 STASSSLSHDALVDTITTAVADAIRISYQSPPGLTVDDAVTKSIADSAADKASAAVRDALSKDLPSPLSHDALVDTITTAVADAIRISYQSPPGLTVDDAVTKSIADSAADKASAAVRDALSKDLPSPIAI
 ```
 Sequence Stats:
-- BayesDesign LogP: -867.6463986468442 `python3 experiment.py compare_seq_probs --protein_id dn47_cut2 --model_name bayes_design --decode_order n_to_c --sequences STASSSLSHDALVDTITTAVADAIRISYQSPPGLTVDDAVTKSIADSAADKASAAVRDALSKDLPSPLSHDALVDTITTAVADAIRISYQSPPGLTVDDAVTKSIADSAADKASAAVRDALSKDLPSPIAI`
-- ProteinMPNN LogP: -245.032467840132 `python3 experiment.py compare_seq_probs --protein_id dn47_cut2 --model_name protein_mpnn --decode_order n_to_c --sequences STASSSLSHDALVDTITTAVADAIRISYQSPPGLTVDDAVTKSIADSAADKASAAVRDALSKDLPSPLSHDALVDTITTAVADAIRISYQSPPGLTVDDAVTKSIADSAADKASAAVRDALSKDLPSPIAI`
+- BayesDesign LogP: -867.6463986468442 `bayes-design-experiment compare_seq_probs --protein_id dn47_cut2 --model_name bayes_design --decode_order n_to_c --sequences STASSSLSHDALVDTITTAVADAIRISYQSPPGLTVDDAVTKSIADSAADKASAAVRDALSKDLPSPLSHDALVDTITTAVADAIRISYQSPPGLTVDDAVTKSIADSAADKASAAVRDALSKDLPSPIAI`
+- ProteinMPNN LogP: -245.032467840132 `bayes-design-experiment compare_seq_probs --protein_id dn47_cut2 --model_name protein_mpnn --decode_order n_to_c --sequences STASSSLSHDALVDTITTAVADAIRISYQSPPGLTVDDAVTKSIADSAADKASAAVRDALSKDLPSPLSHDALVDTITTAVADAIRISYQSPPGLTVDDAVTKSIADSAADKASAAVRDALSKDLPSPIAI`
 
 #### BayesDesign
 Command:
 ```
-python3 design.py --model_name bayes_design --protein_id dn47_cut2 --decode_order n_to_c --decode_algorithm beam_medium --n_beams 128
+bayes-design --model_name bayes_design --protein_id dn47_cut2 --decode_order n_to_c --decode_algorithm beam_medium --n_beams 128
 ```
 Sequence:
 ```
 ECSMHMCTEDCFIDQVVLAVSQAIKQWFEPESGQAIPREQINAHADKCAQMGSQAVRDVLKEKLPCNVSPEEFIELVVKAHSQACLQALTMPEGQAWPEFQRNEHANGAAKGVSQACKCVIDECIPKPPDI
 ```
 Sequence Stats:
-- BayesDesign LogP: -142.98842013604815 `python3 experiment.py compare_seq_probs --protein_id dn47_cut2 --model_name bayes_design --decode_order n_to_c --sequences ECSMHMCTEDCFIDQVVLAVSQAIKQWFEPESGQAIPREQINAHADKCAQMGSQAVRDVLKEKLPCNVSPEEFIELVVKAHSQACLQALTMPEGQAWPEFQRNEHANGAAKGVSQACKCVIDECIPKPPDI`
-- ProteinMPNN LogP: -222.6793760330641 `python3 experiment.py compare_seq_probs --protein_id dn47_cut2 --model_name protein_mpnn --decode_order n_to_c --sequences ECSMHMCTEDCFIDQVVLAVSQAIKQWFEPESGQAIPREQINAHADKCAQMGSQAVRDVLKEKLPCNVSPEEFIELVVKAHSQACLQALTMPEGQAWPEFQRNEHANGAAKGVSQACKCVIDECIPKPPDI`
+- BayesDesign LogP: -142.98842013604815 `bayes-design-experiment compare_seq_probs --protein_id dn47_cut2 --model_name bayes_design --decode_order n_to_c --sequences ECSMHMCTEDCFIDQVVLAVSQAIKQWFEPESGQAIPREQINAHADKCAQMGSQAVRDVLKEKLPCNVSPEEFIELVVKAHSQACLQALTMPEGQAWPEFQRNEHANGAAKGVSQACKCVIDECIPKPPDI`
+- ProteinMPNN LogP: -222.6793760330641 `bayes-design-experiment compare_seq_probs --protein_id dn47_cut2 --model_name protein_mpnn --decode_order n_to_c --sequences ECSMHMCTEDCFIDQVVLAVSQAIKQWFEPESGQAIPREQINAHADKCAQMGSQAVRDVLKEKLPCNVSPEEFIELVVKAHSQACLQALTMPEGQAWPEFQRNEHANGAAKGVSQACKCVIDECIPKPPDI`
 
 
 #### ProteinMPNN
 Command:
 ```
-python3 design.py --model_name protein_mpnn --protein_id dn47_cut2 --decode_order n_to_c --decode_algorithm beam_medium --n_beams 128
+bayes-design --model_name protein_mpnn --protein_id dn47_cut2 --decode_order n_to_c --decode_algorithm beam_medium --n_beams 128
 ```
 Sequence:
 ```
 PPPPAAPTPEELREAVARAVREAVREVFRPPPGDPTPPELWERLAEEAARAAEEAVRRVLEERLPEPLPPEELREAIARAVREAVRRVLEGEPGDPIPEELRERLAEEAARAAREAVEEVLRRLLPPPPPA
 ```
 Sequence Stats:
-- BayesDesign LogP: -501.2846077182429 `python3 experiment.py compare_seq_probs --protein_id dn47_cut2 --model_name bayes_design --decode_order n_to_c --sequences PPPPAAPTPEELREAVARAVREAVREVFRPPPGDPTPPELWERLAEEAARAAEEAVRRVLEERLPEPLPPEELREAIARAVREAVRRVLEGEPGDPIPEELRERLAEEAARAAREAVEEVLRRLLPPPPPA`
-- ProteinMPNN LogP: -91.01211402479034 `python3 experiment.py compare_seq_probs --protein_id dn47_cut2 --model_name protein_mpnn --decode_order n_to_c --sequences PPPPAAPTPEELREAVARAVREAVREVFRPPPGDPTPPELWERLAEEAARAAEEAVRRVLEERLPEPLPPEELREAIARAVREAVRRVLEGEPGDPIPEELRERLAEEAARAAREAVEEVLRRLLPPPPPA`
+- BayesDesign LogP: -501.2846077182429 `bayes-design-experiment compare_seq_probs --protein_id dn47_cut2 --model_name bayes_design --decode_order n_to_c --sequences PPPPAAPTPEELREAVARAVREAVREVFRPPPGDPTPPELWERLAEEAARAAEEAVRRVLEERLPEPLPPEELREAIARAVREAVRRVLEGEPGDPIPEELRERLAEEAARAAREAVEEVLRRLLPPPPPA`
+- ProteinMPNN LogP: -91.01211402479034 `bayes-design-experiment compare_seq_probs --protein_id dn47_cut2 --model_name protein_mpnn --decode_order n_to_c --sequences PPPPAAPTPEELREAVARAVREAVREVFRPPPGDPTPPELWERLAEEAARAAEEAVRRVLEERLPEPLPPEELREAIARAVREAVRRVLEGEPGDPIPEELRERLAEEAARAAREAVEEVLRRLLPPPPPA`
 
 ## Other experiments
 
 ### Visualizing distribution shift
 ```
-python3 experiment.py viz_probs --protein_id 1PIN --decode_order n_to_c --fixed_positions 34 34 --sequence KLPPGWEKRMSRSSGRVYYFNHITNASQFERPSG --results_path ./results/probs_viz_KLPP
+bayes-design-experiment viz_probs --protein_id 1PIN --decode_order n_to_c --fixed_positions 34 34 --sequence KLPPGWEKRMSRSSGRVYYFNHITNASQFERPSG --results_path ./results/probs_viz_KLPP
 ```
 ```
-python3 experiment.py viz_probs --protein_id 1PIN --decode_order n_to_c --fixed_positions 34 34 --sequence KLPPGWEKRMSRSSGRVYYFNHITNASQFERPSG --results_path ./results/probs_viz_KLPP_bayes_002 --bayes_balance_factor .002
+bayes-design-experiment viz_probs --protein_id 1PIN --decode_order n_to_c --fixed_positions 34 34 --sequence KLPPGWEKRMSRSSGRVYYFNHITNASQFERPSG --results_path ./results/probs_viz_KLPP_bayes_002 --bayes_balance_factor .002
 ```
 ### Evaluate perplexity
-python3 experiment.py compare_seq_metric --protein_id 1PIN --fixed_positions 34 34 --model_name protein_mpnn --metric perplexity --sequences KLPPGWEKRMSRSSGRVYYFNHITNASQFERPSG ELPEGWEERVDPKTGKKIYYNTKTKEITEEKPVK KLPEGWVEKVDPKTGKKVYYNTKTKEITEEKPIG
+bayes-design-experiment compare_seq_metric --protein_id 1PIN --fixed_positions 34 34 --model_name protein_mpnn --metric perplexity --sequences KLPPGWEKRMSRSSGRVYYFNHITNASQFERPSG ELPEGWEERVDPKTGKKIYYNTKTKEITEEKPVK KLPEGWVEKVDPKTGKKVYYNTKTKEITEEKPIG
 ```
-python3 experiment.py compare_seq_metric --protein_id 1PIN --fixed_positions 34 34 --model_name protein_mpnn --metric perplexity --sequences KLPPGWEKRMSRSSGRVYYFNHITNASQFERPSG
+bayes-design-experiment compare_seq_metric --protein_id 1PIN --fixed_positions 34 34 --model_name protein_mpnn --metric perplexity --sequences KLPPGWEKRMSRSSGRVYYFNHITNASQFERPSG
 ```
 
 # Compare redesign design, from scratch design, wild type
 ```
-python3 experiment.py compare_seq_metric --protein_id 1PIN --decode_order n_to_c --model_name bayes_design --metric log_prob --sequences QLPEGWEEKVDEETKEKIYYNKETKEITKEKMIC MLPEGWVKQRNPITGEDVCFNTLTHEMTKFEPQG KLPPGWEKRMSRSSGRVYYFNHITNASQFERPSG
+bayes-design-experiment compare_seq_metric --protein_id 1PIN --decode_order n_to_c --model_name bayes_design --metric log_prob --sequences QLPEGWEEKVDEETKEKIYYNKETKEITKEKMIC MLPEGWVKQRNPITGEDVCFNTLTHEMTKFEPQG KLPPGWEKRMSRSSGRVYYFNHITNASQFERPSG
 ```
 
 One problem with using mlm redesign: Even if the probability increases for one token, that probability could be changed once we replace other tokens. So maybe V instead of K increases probability by .01, and then G instead of L increases probability by .01, but decreases probability of V by .2. Perhaps we should instead choose each token based on how it affects the log-likelihood of the whole sequence instead of just that token. argmax_aa p(struct=X|seq=seq:seq[i]=aa) vs argmax_aa p(struct=X|seq)
@@ -259,165 +259,165 @@ beam 512 design from scratch,   KLPEGWVEKVDPKTGEKVYYNTKTKEITKEKPVG   -->
 ## Price sequence design commands
 Greedy design from scratch BayesDesign
 ```
-python3 design.py --model_name bayes_design --protein_id 1PIN --decode_order n_to_c --fixed_positions 34 34 --bayes_balance_factor .002 --decode_algorithm greedy --from_scratch
+bayes-design --model_name bayes_design --protein_id 1PIN --decode_order n_to_c --fixed_positions 34 34 --bayes_balance_factor .002 --decode_algorithm greedy --from_scratch
 ```
 Beam 128 design from scratch BayesDesign
 ```
-python3 design.py --model_name bayes_design --protein_id 1PIN --decode_order n_to_c --fixed_positions 34 34 --bayes_balance_factor .002  --decode_algorithm beam_medium --n_beams 128 --from_scratch
+bayes-design --model_name bayes_design --protein_id 1PIN --decode_order n_to_c --fixed_positions 34 34 --bayes_balance_factor .002  --decode_algorithm beam_medium --n_beams 128 --from_scratch
 ```
 Beam 256 design from scratch BayesDesign
 ```
-python3 design.py --model_name bayes_design --protein_id 1PIN --decode_order n_to_c --fixed_positions 34 34 --bayes_balance_factor .002  --decode_algorithm beam_medium --n_beams 256 --from_scratch
+bayes-design --model_name bayes_design --protein_id 1PIN --decode_order n_to_c --fixed_positions 34 34 --bayes_balance_factor .002  --decode_algorithm beam_medium --n_beams 256 --from_scratch
 ```
 Beam 512 design from scratch BayesDesign
 ```
-python3 design.py --model_name bayes_design --protein_id 1PIN --decode_order n_to_c --fixed_positions 34 34 --bayes_balance_factor .002  --decode_algorithm beam_medium --n_beams 512 --from_scratch
+bayes-design --model_name bayes_design --protein_id 1PIN --decode_order n_to_c --fixed_positions 34 34 --bayes_balance_factor .002  --decode_algorithm beam_medium --n_beams 512 --from_scratch
 ```
 Greedy redesign BayesDesign
 ```
-python3 design.py --model_name bayes_design --protein_id 1PIN --decode_order n_to_c --fixed_positions 34 34 --bayes_balance_factor .002 --decode_algorithm greedy
+bayes-design --model_name bayes_design --protein_id 1PIN --decode_order n_to_c --fixed_positions 34 34 --bayes_balance_factor .002 --decode_algorithm greedy
 ```
 Beam 128 redesign BayesDesign
 ```
-python3 design.py --model_name bayes_design --protein_id 1PIN --decode_order n_to_c --fixed_positions 34 34 --bayes_balance_factor .002 --decode_algorithm beam_medium --n_beams 128
+bayes-design --model_name bayes_design --protein_id 1PIN --decode_order n_to_c --fixed_positions 34 34 --bayes_balance_factor .002 --decode_algorithm beam_medium --n_beams 128
 ```
 Beam 256 redesign BayesDesign
 ```
-python3 design.py --model_name bayes_design --protein_id 1PIN --decode_order n_to_c --fixed_positions 34 34 --bayes_balance_factor .002 --decode_algorithm beam_medium --n_beams 256
+bayes-design --model_name bayes_design --protein_id 1PIN --decode_order n_to_c --fixed_positions 34 34 --bayes_balance_factor .002 --decode_algorithm beam_medium --n_beams 256
 ```
 Beam 512 redesign BayesDesign
 ```
-python3 design.py --model_name bayes_design --protein_id 1PIN --decode_order n_to_c --fixed_positions 34 34 --bayes_balance_factor .002 --decode_algorithm beam_medium --n_beams 512
+bayes-design --model_name bayes_design --protein_id 1PIN --decode_order n_to_c --fixed_positions 34 34 --bayes_balance_factor .002 --decode_algorithm beam_medium --n_beams 512
 ```
 Greedy design from scratch ProteinMPNN
 ```
-python3 design.py --model_name protein_mpnn --protein_id 1PIN --decode_order n_to_c --fixed_positions 34 34  --decode_algorithm greedy --from_scratch
+bayes-design --model_name protein_mpnn --protein_id 1PIN --decode_order n_to_c --fixed_positions 34 34  --decode_algorithm greedy --from_scratch
 ```
 Beam 128 design from scratch ProteinMPNN
 ```
-python3 design.py --model_name protein_mpnn --protein_id 1PIN --decode_order n_to_c --fixed_positions 34 34   --decode_algorithm beam_medium --n_beams 128 --from_scratch
+bayes-design --model_name protein_mpnn --protein_id 1PIN --decode_order n_to_c --fixed_positions 34 34   --decode_algorithm beam_medium --n_beams 128 --from_scratch
 ```
 Beam 256 design from scratch ProteinMPNN
 ```
-python3 design.py --model_name protein_mpnn --protein_id 1PIN --decode_order n_to_c --fixed_positions 34 34   --decode_algorithm beam_medium --n_beams 256 --from_scratch
+bayes-design --model_name protein_mpnn --protein_id 1PIN --decode_order n_to_c --fixed_positions 34 34   --decode_algorithm beam_medium --n_beams 256 --from_scratch
 ```
 Beam 512 design from scratch ProteinMPNN
 ```
-python3 design.py --model_name protein_mpnn --protein_id 1PIN --decode_order n_to_c --fixed_positions 34 34   --decode_algorithm beam_medium --n_beams 512 --from_scratch
+bayes-design --model_name protein_mpnn --protein_id 1PIN --decode_order n_to_c --fixed_positions 34 34   --decode_algorithm beam_medium --n_beams 512 --from_scratch
 ```
 Greedy redesign ProteinMPNN
 ```
-python3 design.py --model_name protein_mpnn --protein_id 1PIN --decode_order n_to_c --fixed_positions 34 34  --decode_algorithm greedy
+bayes-design --model_name protein_mpnn --protein_id 1PIN --decode_order n_to_c --fixed_positions 34 34  --decode_algorithm greedy
 ```
 Beam 128 redesign ProteinMPNN
 ```
-python3 design.py --model_name protein_mpnn --protein_id 1PIN --decode_order n_to_c --fixed_positions 34 34  --decode_algorithm beam_medium --n_beams 128
+bayes-design --model_name protein_mpnn --protein_id 1PIN --decode_order n_to_c --fixed_positions 34 34  --decode_algorithm beam_medium --n_beams 128
 ```
 Beam 256 redesign ProteinMPNN
 ```
-python3 design.py --model_name protein_mpnn --protein_id 1PIN --decode_order n_to_c --fixed_positions 34 34 --decode_algorithm beam_medium --n_beams 256
+bayes-design --model_name protein_mpnn --protein_id 1PIN --decode_order n_to_c --fixed_positions 34 34 --decode_algorithm beam_medium --n_beams 256
 ```
 Beam 512 redesign ProteinMPNN
 ```
-python3 design.py --model_name protein_mpnn --protein_id 1PIN --decode_order n_to_c --fixed_positions 34 34 --decode_algorithm beam_medium --n_beams 512
+bayes-design --model_name protein_mpnn --protein_id 1PIN --decode_order n_to_c --fixed_positions 34 34 --decode_algorithm beam_medium --n_beams 512
 ```
 
 1CW
 
 Greedy design from scratch BayesDesign
 ```
-python3 design.py --model_name bayes_design --protein_id 1coi --decode_order n_to_c --fixed_positions 29 29 --bayes_balance_factor .002 --decode_algorithm greedy --from_scratch
+bayes-design --model_name bayes_design --protein_id 1coi --decode_order n_to_c --fixed_positions 29 29 --bayes_balance_factor .002 --decode_algorithm greedy --from_scratch
 ```
 Beam 128 design from scratch BayesDesign
 ```
-python3 design.py --model_name bayes_design --protein_id 1coi --decode_order n_to_c --fixed_positions 29 29 --bayes_balance_factor .002  --decode_algorithm beam_medium --n_beams 128 --from_scratch
+bayes-design --model_name bayes_design --protein_id 1coi --decode_order n_to_c --fixed_positions 29 29 --bayes_balance_factor .002  --decode_algorithm beam_medium --n_beams 128 --from_scratch
 ```
 Beam 256 design from scratch BayesDesign
 ```
-python3 design.py --model_name bayes_design --protein_id 1coi --decode_order n_to_c --fixed_positions 29 29 --bayes_balance_factor .002  --decode_algorithm beam_medium --n_beams 256 --from_scratch
+bayes-design --model_name bayes_design --protein_id 1coi --decode_order n_to_c --fixed_positions 29 29 --bayes_balance_factor .002  --decode_algorithm beam_medium --n_beams 256 --from_scratch
 ```
 Beam 512 design from scratch BayesDesign
 ```
-python3 design.py --model_name bayes_design --protein_id 1coi --decode_order n_to_c --fixed_positions 29 29 --bayes_balance_factor .002  --decode_algorithm beam_medium --n_beams 512 --from_scratch
+bayes-design --model_name bayes_design --protein_id 1coi --decode_order n_to_c --fixed_positions 29 29 --bayes_balance_factor .002  --decode_algorithm beam_medium --n_beams 512 --from_scratch
 ```
 
 Greedy design from scratch ProteinMPNN
 ```
-python3 design.py --model_name protein_mpnn --protein_id 1coi --decode_order n_to_c --fixed_positions 29 29  --decode_algorithm greedy --from_scratch
+bayes-design --model_name protein_mpnn --protein_id 1coi --decode_order n_to_c --fixed_positions 29 29  --decode_algorithm greedy --from_scratch
 ```
 Beam 128 design from scratch ProteinMPNN
 ```
-python3 design.py --model_name protein_mpnn --protein_id 1coi --decode_order n_to_c --fixed_positions 29 29   --decode_algorithm beam_medium --n_beams 128 --from_scratch
+bayes-design --model_name protein_mpnn --protein_id 1coi --decode_order n_to_c --fixed_positions 29 29   --decode_algorithm beam_medium --n_beams 128 --from_scratch
 ```
 Beam 256 design from scratch ProteinMPNN
 ```
-python3 design.py --model_name protein_mpnn --protein_id 1coi --decode_order n_to_c --fixed_positions 29 29   --decode_algorithm beam_medium --n_beams 256 --from_scratch
+bayes-design --model_name protein_mpnn --protein_id 1coi --decode_order n_to_c --fixed_positions 29 29   --decode_algorithm beam_medium --n_beams 256 --from_scratch
 ```
 Beam 512 design from scratch ProteinMPNN
 ```
-python3 design.py --model_name protein_mpnn --protein_id 1coi --decode_order n_to_c --fixed_positions 29 29   --decode_algorithm beam_medium --n_beams 512 --from_scratch
+bayes-design --model_name protein_mpnn --protein_id 1coi --decode_order n_to_c --fixed_positions 29 29   --decode_algorithm beam_medium --n_beams 512 --from_scratch
 ```
 
 ## Price sequence evaluation commands
-python3 experiment.py compare_seq_metric --model_name bayes_design --protein_id 1PIN --decode_order n_to_c --fixed_positions 34 34 --bayes_balance_factor .002 --metric log_prob --sequences KLPPGWEKRMSRSSGRVYYFNHITNASQFERPSG TLPEHWVKRKDPKTGQWIYENTKTHETLAQKWQG KTPEWWWPIINKWTMETMYYNTGTNEVTKEKPIG QLPEGWVKRTNKVTGKDEYRNVKTNETTSKKPIG KTWYGWVPIVDFKTGEEMYRNDLTNEITRDKPIG QTWYGWVPIVDDKTGETKWLNKIEKKVTSKKPIG QWWYGWVPIVDEKTGEEKAYNVLTKEVTSERPIG
+bayes-design-experiment compare_seq_metric --model_name bayes_design --protein_id 1PIN --decode_order n_to_c --fixed_positions 34 34 --bayes_balance_factor .002 --metric log_prob --sequences KLPPGWEKRMSRSSGRVYYFNHITNASQFERPSG TLPEHWVKRKDPKTGQWIYENTKTHETLAQKWQG KTPEWWWPIINKWTMETMYYNTGTNEVTKEKPIG QLPEGWVKRTNKVTGKDEYRNVKTNETTSKKPIG KTWYGWVPIVDFKTGEEMYRNDLTNEITRDKPIG QTWYGWVPIVDDKTGETKWLNKIEKKVTSKKPIG QWWYGWVPIVDEKTGEEKAYNVLTKEVTSERPIG
 
-python3 experiment.py compare_seq_metric --model_name bayes_design --protein_id 1PIN --decode_order n_to_c --fixed_positions 34 34 --bayes_balance_factor .002 --metric log_prob --sequences KLPPGWEKRMSRSSGRVYYFNHITNASQFERPSG TLPEHWVKRKDPKTGQWIYENTKTHETLAQKWQG KTPEWWWPIINKWTMETMYYNTGTNEVTKEKPIG QLPEGWVKRTNKVTGKDEYRNVKTNETTSKKPIG KTWYGWVPIVDFKTGEEMYRNDLTNEITRDKPIG QTWYGWVPIVDDKTGETKWLNKIEKKVTSKKPIG QWWYGWVPIVDEKTGEEKAYNVLTKEVTSERPIG --from_scratch
+bayes-design-experiment compare_seq_metric --model_name bayes_design --protein_id 1PIN --decode_order n_to_c --fixed_positions 34 34 --bayes_balance_factor .002 --metric log_prob --sequences KLPPGWEKRMSRSSGRVYYFNHITNASQFERPSG TLPEHWVKRKDPKTGQWIYENTKTHETLAQKWQG KTPEWWWPIINKWTMETMYYNTGTNEVTKEKPIG QLPEGWVKRTNKVTGKDEYRNVKTNETTSKKPIG KTWYGWVPIVDFKTGEEMYRNDLTNEITRDKPIG QTWYGWVPIVDDKTGETKWLNKIEKKVTSKKPIG QWWYGWVPIVDEKTGEEKAYNVLTKEVTSERPIG --from_scratch
 
 # Bundy sequences
 Fix all residues except 16 engineered residues, greedy decode redesign
 ```
-python3 design.py --model_name bayes_design --protein_id nanoluc --decode_order proximity --bayes_balance_factor .002 --decode_algorithm greedy --fixed_positions 1 9 10 13 15 20 22 27 29 36 38 42 44 53 55 63 65 77 79 81 83 84 86 99 101 124 126  133 135 147 149 175 177 179
+bayes-design --model_name bayes_design --protein_id nanoluc --decode_order proximity --bayes_balance_factor .002 --decode_algorithm greedy --fixed_positions 1 9 10 13 15 20 22 27 29 36 38 42 44 53 55 63 65 77 79 81 83 84 86 99 101 124 126  133 135 147 149 175 177 179
 ```
 Fix the active site (small), greedy decode redesign
 ```
-python3 design.py --model_name bayes_design --protein_id nanoluc --decode_order proximity --bayes_balance_factor .002 --decode_algorithm greedy --fixed_positions 1 9 10 10 13 13 51 51 59 59 61 61 63 63 100 102 104 104 106 106 112 112 114 114 121 125 127 127 132 132 134 137 144 144 146 146 148 148 156 156 158 158 160 160
+bayes-design --model_name bayes_design --protein_id nanoluc --decode_order proximity --bayes_balance_factor .002 --decode_algorithm greedy --fixed_positions 1 9 10 10 13 13 51 51 59 59 61 61 63 63 100 102 104 104 106 106 112 112 114 114 121 125 127 127 132 132 134 137 144 144 146 146 148 148 156 156 158 158 160 160
 ```
 Fix the active site (small), beam search decode from scratch
 ```
-python3 design.py --model_name bayes_design --protein_id nanoluc --decode_order proximity --bayes_balance_factor .002 --decode_algorithm beam_medium --n_beams 512 --from_scratch --fixed_positions  1 9 10 10 13 13 51 51 59 59 61 61 63 63 100 102 104 104
+bayes-design --model_name bayes_design --protein_id nanoluc --decode_order proximity --bayes_balance_factor .002 --decode_algorithm beam_medium --n_beams 512 --from_scratch --fixed_positions  1 9 10 10 13 13 51 51 59 59 61 61 63 63 100 102 104 104
 ```
 Fix the active site (small) and the engineered residues, greedy decode redesign
 ```
-python3 design.py --model_name bayes_design --protein_id nanoluc --decode_order proximity --bayes_balance_factor .002 --decode_algorithm greedy --fixed_positions 1 9 10 10 13 13 51 51 59 59 61 61 63 63 100 102 104 104 106 106 112 112 114 114 121 125 127 127 132 132 134 137 144 144 146 146 148 148 156 156 158 158 160 160 14 14 21 21 28 28 37 37 43 43 53 54 64 64 78 78 82 82 85 85 100 100 125 125 134 134 148 148 176 176
+bayes-design --model_name bayes_design --protein_id nanoluc --decode_order proximity --bayes_balance_factor .002 --decode_algorithm greedy --fixed_positions 1 9 10 10 13 13 51 51 59 59 61 61 63 63 100 102 104 104 106 106 112 112 114 114 121 125 127 127 132 132 134 137 144 144 146 146 148 148 156 156 158 158 160 160 14 14 21 21 28 28 37 37 43 43 53 54 64 64 78 78 82 82 85 85 100 100 125 125 134 134 148 148 176 176
 ```
 Fix the active site (small) and the engineered residues, beam search decode from scratch
 ```
-python3 design.py --model_name bayes_design --protein_id nanoluc --decode_order proximity --bayes_balance_factor .002 --decode_algorithm beam_medium --n_beams 512 --from_scratch --fixed_positions  1 9 10 10 13 13 51 51 59 59 61 61 63 63 100 102 104 104 106 106 112 112 114 114 121 125 127 127 132 132 134 137 144 144 146 146 148 148 156 156 158 158 160 160 14 14 21 21 28 28 37 37 43 43 53 54 64 64 78 78 82 82 85 85 100 100 125 125 134 134 148 148 176 176
+bayes-design --model_name bayes_design --protein_id nanoluc --decode_order proximity --bayes_balance_factor .002 --decode_algorithm beam_medium --n_beams 512 --from_scratch --fixed_positions  1 9 10 10 13 13 51 51 59 59 61 61 63 63 100 102 104 104 106 106 112 112 114 114 121 125 127 127 132 132 134 137 144 144 146 146 148 148 156 156 158 158 160 160 14 14 21 21 28 28 37 37 43 43 53 54 64 64 78 78 82 82 85 85 100 100 125 125 134 134 148 148 176 176
 ```
 Fix the active site (large), greedy decode redesign
 ```
-python3 design.py --model_name bayes_design --protein_id nanoluc --decode_order proximity --bayes_balance_factor .002 --decode_algorithm greedy --fixed_positions 1 9 8 14 17 17 49 51 57 64 98 108 110 116 120 127 132 139 142 150 156 158 160 162 
+bayes-design --model_name bayes_design --protein_id nanoluc --decode_order proximity --bayes_balance_factor .002 --decode_algorithm greedy --fixed_positions 1 9 8 14 17 17 49 51 57 64 98 108 110 116 120 127 132 139 142 150 156 158 160 162 
 ```
 Fix the active site (large), beam search decode from scratch
 ```
-python3 design.py --model_name bayes_design --protein_id nanoluc --decode_order proximity --bayes_balance_factor .002 --decode_algorithm beam_medium --n_beams 512 --from_scratch --fixed_positions 1 9 8 14 17 17 49 51 57 64 98 108 110 116 120 127 132 139 142 150 156 158 160 162
+bayes-design --model_name bayes_design --protein_id nanoluc --decode_order proximity --bayes_balance_factor .002 --decode_algorithm beam_medium --n_beams 512 --from_scratch --fixed_positions 1 9 8 14 17 17 49 51 57 64 98 108 110 116 120 127 132 139 142 150 156 158 160 162
 ```
 Fix the active site (large) and the engineered residues, greedy decode redesign
 ```
-python3 design.py --model_name bayes_design --protein_id nanoluc --decode_order proximity --bayes_balance_factor .002 --decode_algorithm greedy --fixed_positions 1 9 8 14 17 17 49 51 57 64 98 108 110 116 120 127 132 139 142 150 156 158 160 162 14 14 21 21 28 28 37 37 43 43 53 54 64 64 78 78 82 82 85 85 100 100 125 125 134 134 148 148 176 176 
+bayes-design --model_name bayes_design --protein_id nanoluc --decode_order proximity --bayes_balance_factor .002 --decode_algorithm greedy --fixed_positions 1 9 8 14 17 17 49 51 57 64 98 108 110 116 120 127 132 139 142 150 156 158 160 162 14 14 21 21 28 28 37 37 43 43 53 54 64 64 78 78 82 82 85 85 100 100 125 125 134 134 148 148 176 176 
 ```
 Fix the active site (large), and the engineered residues, beam search decode from scratch
 ```
-python3 design.py --model_name bayes_design --protein_id nanoluc --decode_order proximity --bayes_balance_factor .002 --decode_algorithm beam_medium --n_beams 512 --from_scratch --fixed_positions 1 9 8 14 17 17 49 51 57 64 98 108 110 116 120 127 132 139 142 150 156 158 160 162 14 14 21 21 28 28 37 37 43 43 53 54 64 64 78 78 82 82 85 85 100 100 125 125 134 134 148 148 176 176 
+bayes-design --model_name bayes_design --protein_id nanoluc --decode_order proximity --bayes_balance_factor .002 --decode_algorithm beam_medium --n_beams 512 --from_scratch --fixed_positions 1 9 8 14 17 17 49 51 57 64 98 108 110 116 120 127 132 139 142 150 156 158 160 162 14 14 21 21 28 28 37 37 43 43 53 54 64 64 78 78 82 82 85 85 100 100 125 125 134 134 148 148 176 176 
 ```
 
-python3 experiment.py compare_seq_metric --model_name bayes_design --protein_id nanoluc --decode_order proximity --bayes_balance_factor .002 --metric log_prob --sequences MWSHPQFEKVFTLEDFVGDWRQTAGYNLDQVLEQGGVSSLFQNLGVSVTPIQRIVLSGENGLKIDIHVIIPYEGLSGDQMGQIEKIFKVVYPVDDHHFKVILHYGTLVIDGVTPNMIDYFGRPYEGIAVFDGKKITVTGTLWNGNKIIDERLINPDGSLLFRVTINGVTGWRLCERILA MWSHPQFEKVFTLEDFVGDWRQTAGYNMDQVLEQGGASSLFQKLGVSVTPIQRIVLSGENGLKVDIHVIIPYEGLSGCQMGLIEKIFKVVYPVDDHHFKVILHYGTLVIDGVTPNMIDYFGRPYTGIAVFDGKKITVTGTLWNGNKIVDERLINPDGSLLFRVTINGVTGWRLCERILA --fixed_positions 1 9 10 13 15 20 22 27 29 36 38 42 44 53 55 63 65 77 79 81 83 84 86 99 101 124 126 133 135 147 149 175 177 179
+bayes-design-experiment compare_seq_metric --model_name bayes_design --protein_id nanoluc --decode_order proximity --bayes_balance_factor .002 --metric log_prob --sequences MWSHPQFEKVFTLEDFVGDWRQTAGYNLDQVLEQGGVSSLFQNLGVSVTPIQRIVLSGENGLKIDIHVIIPYEGLSGDQMGQIEKIFKVVYPVDDHHFKVILHYGTLVIDGVTPNMIDYFGRPYEGIAVFDGKKITVTGTLWNGNKIIDERLINPDGSLLFRVTINGVTGWRLCERILA MWSHPQFEKVFTLEDFVGDWRQTAGYNMDQVLEQGGASSLFQKLGVSVTPIQRIVLSGENGLKVDIHVIIPYEGLSGCQMGLIEKIFKVVYPVDDHHFKVILHYGTLVIDGVTPNMIDYFGRPYTGIAVFDGKKITVTGTLWNGNKIVDERLINPDGSLLFRVTINGVTGWRLCERILA --fixed_positions 1 9 10 13 15 20 22 27 29 36 38 42 44 53 55 63 65 77 79 81 83 84 86 99 101 124 126 133 135 147 149 175 177 179
 
-python3 experiment.py compare_seq_metric --model_name bayes_design --protein_id nanoluc --decode_order proximity --bayes_balance_factor .002 --metric log_prob --sequences MWSHPQFEKVFTLEDFVGDWRQTAGYNLDQVLEQGGVSSLFQNLGVSVTPIQRIVLSGENGLKIDIHVIIPYEGLSGDQMGQIEKIFKVVYPVDDHHFKVILHYGTLVIDGVTPNMIDYFGRPYEGIAVFDGKKITVTGTLWNGNKIIDERLINPDGSLLFRVTINGVTGWRLCERILA MWSHPQFEKVLTLDDFVGKWELVEQKNIPEVLRQMGAPQFFIDLWCNTKPILVITKYGENGLKVTIEMVIPKKGLTCDQMDQIHKIFKVMIPVDENHFKVILDYGTLIINGVSPNCKDWLGRPYEGICTFDGKKITVTGTLPNGNKFIDTYEILPDGSLLFTVDVNGVKGWWKLKRVEE --fixed_positions 1 9 10 10 13 13 51 51 59 59 61 61 63 63 100 102 104 104 106 106 112 112 114 114 121 125 127 127 132 132 134 137 144 144 146 146 148 148 156 156 158 158 160 160
+bayes-design-experiment compare_seq_metric --model_name bayes_design --protein_id nanoluc --decode_order proximity --bayes_balance_factor .002 --metric log_prob --sequences MWSHPQFEKVFTLEDFVGDWRQTAGYNLDQVLEQGGVSSLFQNLGVSVTPIQRIVLSGENGLKIDIHVIIPYEGLSGDQMGQIEKIFKVVYPVDDHHFKVILHYGTLVIDGVTPNMIDYFGRPYEGIAVFDGKKITVTGTLWNGNKIIDERLINPDGSLLFRVTINGVTGWRLCERILA MWSHPQFEKVLTLDDFVGKWELVEQKNIPEVLRQMGAPQFFIDLWCNTKPILVITKYGENGLKVTIEMVIPKKGLTCDQMDQIHKIFKVMIPVDENHFKVILDYGTLIINGVSPNCKDWLGRPYEGICTFDGKKITVTGTLPNGNKFIDTYEILPDGSLLFTVDVNGVKGWWKLKRVEE --fixed_positions 1 9 10 10 13 13 51 51 59 59 61 61 63 63 100 102 104 104 106 106 112 112 114 114 121 125 127 127 132 132 134 137 144 144 146 146 148 148 156 156 158 158 160 160
 
-python3 experiment.py compare_seq_metric --model_name bayes_design --protein_id nanoluc --decode_order proximity --bayes_balance_factor .002 --metric log_prob --from_scratch --sequences MWSHPQFEKVFTLEDFVGDWRQTAGYNLDQVLEQGGVSSLFQNLGVSVTPIQRIVLSGENGLKIDIHVIIPYEGLSGDQMGQIEKIFKVVYPVDDHHFKVILHYGTLVIDGVTPNMIDYFGRPYEGIAVFDGKKITVTGTLWNGNKIIDERLINPDGSLLFRVTINGVTGWRLCERILA MWSHPQFEKVLTLDDFVGNWRMVSQWNIPAVLREMGMPPFLIDLWCATTPIWVITKYGENGLKVDVHMVIPKEGLTPEQMRYLQAMFGHMTQVDETHFQVILDYGVFIINGTSKNCKDFMNRPFEVNTTFDGKKLTMTGTLWNGKKFVMTFEILPDGHLRYTVDVNGVKGWMILERVEP --fixed_positions 1 9 10 10 13 13 51 51 59 59 61 61 63 63 100 102 104 104 106 106 112 112 114 114 121 125 127 127 132 132 134 137 144 144 146 146 148 148 156 156 158 158 160 160
+bayes-design-experiment compare_seq_metric --model_name bayes_design --protein_id nanoluc --decode_order proximity --bayes_balance_factor .002 --metric log_prob --from_scratch --sequences MWSHPQFEKVFTLEDFVGDWRQTAGYNLDQVLEQGGVSSLFQNLGVSVTPIQRIVLSGENGLKIDIHVIIPYEGLSGDQMGQIEKIFKVVYPVDDHHFKVILHYGTLVIDGVTPNMIDYFGRPYEGIAVFDGKKITVTGTLWNGNKIIDERLINPDGSLLFRVTINGVTGWRLCERILA MWSHPQFEKVLTLDDFVGNWRMVSQWNIPAVLREMGMPPFLIDLWCATTPIWVITKYGENGLKVDVHMVIPKEGLTPEQMRYLQAMFGHMTQVDETHFQVILDYGVFIINGTSKNCKDFMNRPFEVNTTFDGKKLTMTGTLWNGKKFVMTFEILPDGHLRYTVDVNGVKGWMILERVEP --fixed_positions 1 9 10 10 13 13 51 51 59 59 61 61 63 63 100 102 104 104 106 106 112 112 114 114 121 125 127 127 132 132 134 137 144 144 146 146 148 148 156 156 158 158 160 160
 
-python3 experiment.py compare_seq_metric --model_name bayes_design --protein_id nanoluc --decode_order proximity --bayes_balance_factor .002 --metric log_prob --sequences MWSHPQFEKVFTLEDFVGDWRQTAGYNLDQVLEQGGVSSLFQNLGVSVTPIQRIVLSGENGLKIDIHVIIPYEGLSGDQMGQIEKIFKVVYPVDDHHFKVILHYGTLVIDGVTPNMIDYFGRPYEGIAVFDGKKITVTGTLWNGNKIIDERLINPDGSLLFRVTINGVTGWRLCERILA MWSHPQFEKVLTLEDFVGDWRLVDKWNLPEVLKAMGVPQFMINLYCQTQPILRITKAGENGLKIEIEMVIPKKGLTCDQMEQIKKIYKHVEDVDDNHFKVILDYGTLIINGVSPNMKDFLGRPYEGICTFDGKKITVTGTLPNGNKVIITFEIQPDGSLLLTIDVNGVKGWMVYERVEP --fixed_positions 1 9 10 10 13 13 51 51 59 59 61 61 63 63 100 102 104 104 106 106 112 112 114 114 121 125 127 127 132 132 134 137 144 144 146 146 148 148 156 156 158 158 160 160 14 14 21 21 28 28 37 37 43 43 53 54 64 64 78 78 82 82 85 85 100 100 125 125 134 134 148 148 176 176
+bayes-design-experiment compare_seq_metric --model_name bayes_design --protein_id nanoluc --decode_order proximity --bayes_balance_factor .002 --metric log_prob --sequences MWSHPQFEKVFTLEDFVGDWRQTAGYNLDQVLEQGGVSSLFQNLGVSVTPIQRIVLSGENGLKIDIHVIIPYEGLSGDQMGQIEKIFKVVYPVDDHHFKVILHYGTLVIDGVTPNMIDYFGRPYEGIAVFDGKKITVTGTLWNGNKIIDERLINPDGSLLFRVTINGVTGWRLCERILA MWSHPQFEKVLTLEDFVGDWRLVDKWNLPEVLKAMGVPQFMINLYCQTQPILRITKAGENGLKIEIEMVIPKKGLTCDQMEQIKKIYKHVEDVDDNHFKVILDYGTLIINGVSPNMKDFLGRPYEGICTFDGKKITVTGTLPNGNKVIITFEIQPDGSLLLTIDVNGVKGWMVYERVEP --fixed_positions 1 9 10 10 13 13 51 51 59 59 61 61 63 63 100 102 104 104 106 106 112 112 114 114 121 125 127 127 132 132 134 137 144 144 146 146 148 148 156 156 158 158 160 160 14 14 21 21 28 28 37 37 43 43 53 54 64 64 78 78 82 82 85 85 100 100 125 125 134 134 148 148 176 176
 
-python3 experiment.py compare_seq_metric --model_name bayes_design --protein_id nanoluc --decode_order proximity --bayes_balance_factor .002 --metric log_prob --from_scratch --sequences MWSHPQFEKVFTLEDFVGDWRQTAGYNLDQVLEQGGVSSLFQNLGVSVTPIQRIVLSGENGLKIDIHVIIPYEGLSGDQMGQIEKIFKVVYPVDDHHFKVILHYGTLVIDGVTPNMIDYFGRPYEGIAVFDGKKITVTGTLWNGNKIIDERLINPDGSLLFRVTINGVTGWRLCERILA MWSHPQFEKVLKLEDFVGDWRRVDSWNLPEVLKAMGVPQFFINLFCQTQPIWRISKHGEKGLKIQMIMRIPKQGLTPDQMAQIQKTFKHVQDIDDQHFQVILDYGTLIIDGVSPNCKDFLGRPYEGICKFDGKKITVTGTLPNGNKFIWTMEILDDGSLLFTVDVNGVKGYMILERVEP --fixed_positions 1 9 10 10 13 13 51 51 59 59 61 61 63 63 100 102 104 104 106 106 112 112 114 114 121 125 127 127 132 132 134 137 144 144 146 146 148 148 156 156 158 158 160 160 14 14 21 21 28 28 37 37 43 43 53 54 64 64 78 78 82 82 85 85 100 100 125 125 134 134 148 148 176 176
+bayes-design-experiment compare_seq_metric --model_name bayes_design --protein_id nanoluc --decode_order proximity --bayes_balance_factor .002 --metric log_prob --from_scratch --sequences MWSHPQFEKVFTLEDFVGDWRQTAGYNLDQVLEQGGVSSLFQNLGVSVTPIQRIVLSGENGLKIDIHVIIPYEGLSGDQMGQIEKIFKVVYPVDDHHFKVILHYGTLVIDGVTPNMIDYFGRPYEGIAVFDGKKITVTGTLWNGNKIIDERLINPDGSLLFRVTINGVTGWRLCERILA MWSHPQFEKVLKLEDFVGDWRRVDSWNLPEVLKAMGVPQFFINLFCQTQPIWRISKHGEKGLKIQMIMRIPKQGLTPDQMAQIQKTFKHVQDIDDQHFQVILDYGTLIIDGVSPNCKDFLGRPYEGICKFDGKKITVTGTLPNGNKFIWTMEILDDGSLLFTVDVNGVKGYMILERVEP --fixed_positions 1 9 10 10 13 13 51 51 59 59 61 61 63 63 100 102 104 104 106 106 112 112 114 114 121 125 127 127 132 132 134 137 144 144 146 146 148 148 156 156 158 158 160 160 14 14 21 21 28 28 37 37 43 43 53 54 64 64 78 78 82 82 85 85 100 100 125 125 134 134 148 148 176 176
 
-python3 experiment.py compare_seq_metric --model_name bayes_design --protein_id nanoluc --decode_order proximity --bayes_balance_factor .002 --metric log_prob --sequences MWSHPQFEKVFTLEDFVGDWRQTAGYNLDQVLEQGGVSSLFQNLGVSVTPIQRIVLSGENGLKIDIHVIIPYEGLSGDQMGQIEKIFKVVYPVDDHHFKVILHYGTLVIDGVTPNMIDYFGRPYEGIAVFDGKKITVTGTLWNGNKIIDERLINPDGSLLFRVTINGVTGWRLCERILA MWSHPQFEKVFTLEDFVGKWRMVSKQNTPAVLKEEGAPQFLIDLWCNTTPIFIITLSGENGLKIDIEMIIPKKGLTCDQMKYLQKIFKVMIPVDENNFKVILHYGTLVIDGVTPNMKDYFGRPYEGICKFDGKKITVTGTLWNGNKIIDEWEILPDGSLLFRRTVNGVVGWWKLERIEE --fixed_positions 1 9 8 14 17 17 49 51 57 64 98 108 110 116 120 127 132 139 142 150 156 158 160 162
+bayes-design-experiment compare_seq_metric --model_name bayes_design --protein_id nanoluc --decode_order proximity --bayes_balance_factor .002 --metric log_prob --sequences MWSHPQFEKVFTLEDFVGDWRQTAGYNLDQVLEQGGVSSLFQNLGVSVTPIQRIVLSGENGLKIDIHVIIPYEGLSGDQMGQIEKIFKVVYPVDDHHFKVILHYGTLVIDGVTPNMIDYFGRPYEGIAVFDGKKITVTGTLWNGNKIIDERLINPDGSLLFRVTINGVTGWRLCERILA MWSHPQFEKVFTLEDFVGKWRMVSKQNTPAVLKEEGAPQFLIDLWCNTTPIFIITLSGENGLKIDIEMIIPKKGLTCDQMKYLQKIFKVMIPVDENNFKVILHYGTLVIDGVTPNMKDYFGRPYEGICKFDGKKITVTGTLWNGNKIIDEWEILPDGSLLFRRTVNGVVGWWKLERIEE --fixed_positions 1 9 8 14 17 17 49 51 57 64 98 108 110 116 120 127 132 139 142 150 156 158 160 162
 
-python3 experiment.py compare_seq_metric --model_name bayes_design --protein_id nanoluc --decode_order proximity --bayes_balance_factor .002 --metric log_prob --from_scratch --sequences MWSHPQFEKVFTLEDFVGDWRQTAGYNLDQVLEQGGVSSLFQNLGVSVTPIQRIVLSGENGLKIDIHVIIPYEGLSGDQMGQIEKIFKVVYPVDDHHFKVILHYGTLVIDGVTPNMIDYFGRPYEGIAVFDGKKITVTGTLWNGNKIIDERLINPDGSLLFRVTINGVTGWRLCERILA MWSHPQFEKVFTLEDFVGDWRLVSKQNMAAVLREMGAPDFLIQLYLQCTPIFHITKSGENGLKIDVEMIIPKAGLTPEQMCYLQKMFKHMEPVDENHFKVILHYGTLVIDGVTPNMKDAFGRPYEGICKFDGKKITVTGTLWNGNKIIDEYEILPDGSLLFRRTVNGVTGWMKLERVEP --fixed_positions 1 9 8 14 17 17 49 51 57 64 98 108 110 116 120 127 132 139 142 150 156 158 160 162
+bayes-design-experiment compare_seq_metric --model_name bayes_design --protein_id nanoluc --decode_order proximity --bayes_balance_factor .002 --metric log_prob --from_scratch --sequences MWSHPQFEKVFTLEDFVGDWRQTAGYNLDQVLEQGGVSSLFQNLGVSVTPIQRIVLSGENGLKIDIHVIIPYEGLSGDQMGQIEKIFKVVYPVDDHHFKVILHYGTLVIDGVTPNMIDYFGRPYEGIAVFDGKKITVTGTLWNGNKIIDERLINPDGSLLFRVTINGVTGWRLCERILA MWSHPQFEKVFTLEDFVGDWRLVSKQNMAAVLREMGAPDFLIQLYLQCTPIFHITKSGENGLKIDVEMIIPKAGLTPEQMCYLQKMFKHMEPVDENHFKVILHYGTLVIDGVTPNMKDAFGRPYEGICKFDGKKITVTGTLWNGNKIIDEYEILPDGSLLFRRTVNGVTGWMKLERVEP --fixed_positions 1 9 8 14 17 17 49 51 57 64 98 108 110 116 120 127 132 139 142 150 156 158 160 162
 
-python3 experiment.py compare_seq_metric --model_name bayes_design --protein_id nanoluc --decode_order proximity --bayes_balance_factor .002 --metric log_prob --sequences MWSHPQFEKVFTLEDFVGDWRQTAGYNLDQVLEQGGVSSLFQNLGVSVTPIQRIVLSGENGLKIDIHVIIPYEGLSGDQMGQIEKIFKVVYPVDDHHFKVILHYGTLVIDGVTPNMIDYFGRPYEGIAVFDGKKITVTGTLWNGNKIIDERLINPDGSLLFRVTINGVTGWRLCERILA MWSHPQFEKVFTLEDFVGDWRMVKQWNLPAVLKAMGVPQFMINLFCQTTPILRITLSGENGLKIDIEMIIPKKGLTCDQMNQIKKIFKHVEDVDDNNFKVILHYGTLVIDGVTPNMKDWFGRPYEGICKFDGKKITVTGTLWNGNKIIDEFEILPDGSLLFRVTVNGVEGWMIYERVEP --fixed_positions 1 9 8 14 17 17 49 51 57 64 98 108 110 116 120 127 132 139 142 150 156 158 160 162 14 14 21 21 28 28 37 37 43 43 53 54 64 64 78 78 82 82 85 85 100 100 125 125 134 134 148 148 176 176
+bayes-design-experiment compare_seq_metric --model_name bayes_design --protein_id nanoluc --decode_order proximity --bayes_balance_factor .002 --metric log_prob --sequences MWSHPQFEKVFTLEDFVGDWRQTAGYNLDQVLEQGGVSSLFQNLGVSVTPIQRIVLSGENGLKIDIHVIIPYEGLSGDQMGQIEKIFKVVYPVDDHHFKVILHYGTLVIDGVTPNMIDYFGRPYEGIAVFDGKKITVTGTLWNGNKIIDERLINPDGSLLFRVTINGVTGWRLCERILA MWSHPQFEKVFTLEDFVGDWRMVKQWNLPAVLKAMGVPQFMINLFCQTTPILRITLSGENGLKIDIEMIIPKKGLTCDQMNQIKKIFKHVEDVDDNNFKVILHYGTLVIDGVTPNMKDWFGRPYEGICKFDGKKITVTGTLWNGNKIIDEFEILPDGSLLFRVTVNGVEGWMIYERVEP --fixed_positions 1 9 8 14 17 17 49 51 57 64 98 108 110 116 120 127 132 139 142 150 156 158 160 162 14 14 21 21 28 28 37 37 43 43 53 54 64 64 78 78 82 82 85 85 100 100 125 125 134 134 148 148 176 176
 
-python3 experiment.py compare_seq_metric --model_name bayes_design --protein_id nanoluc --decode_order proximity --bayes_balance_factor .002 --metric log_prob --from_scratch --sequences MWSHPQFEKVFTLEDFVGDWRQTAGYNLDQVLEQGGVSSLFQNLGVSVTPIQRIVLSGENGLKIDIHVIIPYEGLSGDQMGQIEKIFKVVYPVDDHHFKVILHYGTLVIDGVTPNMIDYFGRPYEGIAVFDGKKITVTGTLWNGNKIIDERLINPDGSLLFRVTINGVTGWRLCERILA MWSHPQFEKVFTLEDFVGDWREVDRWNLADVLKAMGVPQFLINLYMSCTPIWRITKSGENGLKIDVEMIIPKQGLTEDQLQQIKKIFQHVEDVDDNHFKVILHYGTLVIDGVTPNMKDWFGRPYEGICKFDGKKITVTGTLWNGNKIIDEFEILPDGSLLFRTTVNGVTGYRILERVEP --fixed_positions 1 9 8 14 17 17 49 51 57 64 98 108 110 116 120 127 132 139 142 150 156 158 160 162 14 14 21 21 28 28 37 37 43 43 53 54 64 64 78 78 82 82 85 85 100 100 125 125 134 134 148 148 176 176
+bayes-design-experiment compare_seq_metric --model_name bayes_design --protein_id nanoluc --decode_order proximity --bayes_balance_factor .002 --metric log_prob --from_scratch --sequences MWSHPQFEKVFTLEDFVGDWRQTAGYNLDQVLEQGGVSSLFQNLGVSVTPIQRIVLSGENGLKIDIHVIIPYEGLSGDQMGQIEKIFKVVYPVDDHHFKVILHYGTLVIDGVTPNMIDYFGRPYEGIAVFDGKKITVTGTLWNGNKIIDERLINPDGSLLFRVTINGVTGWRLCERILA MWSHPQFEKVFTLEDFVGDWREVDRWNLADVLKAMGVPQFLINLYMSCTPIWRITKSGENGLKIDVEMIIPKQGLTEDQLQQIKKIFQHVEDVDDNHFKVILHYGTLVIDGVTPNMKDWFGRPYEGICKFDGKKITVTGTLWNGNKIIDEFEILPDGSLLFRTTVNGVTGYRILERVEP --fixed_positions 1 9 8 14 17 17 49 51 57 64 98 108 110 116 120 127 132 139 142 150 156 158 160 162 14 14 21 21 28 28 37 37 43 43 53 54 64 64 78 78 82 82 85 85 100 100 125 125 134 134 148 148 176 176
 
 # Moody lab design
 
@@ -439,36 +439,36 @@ beam 512 design from scratch,
   
 Greedy design from scratch BayesDesign
 ```[]
-python3 design.py --model_name bayes_design --protein_id spycatcher --decode_order n_to_c --fixed_positions 9 9 55 55 72 81 --bayes_balance_factor .002 --decode_algorithm greedy --from_scratch
+bayes-design --model_name bayes_design --protein_id spycatcher --decode_order n_to_c --fixed_positions 9 9 55 55 72 81 --bayes_balance_factor .002 --decode_algorithm greedy --from_scratch
 ```
 Beam 128 design from scratch BayesDesign
 ```
-python3 design.py --model_name bayes_design --protein_id spycatcher --decode_order n_to_c --fixed_positions 9 9 55 55 72 81 --bayes_balance_factor .002  --decode_algorithm beam_medium --n_beams 128 --from_scratch
+bayes-design --model_name bayes_design --protein_id spycatcher --decode_order n_to_c --fixed_positions 9 9 55 55 72 81 --bayes_balance_factor .002  --decode_algorithm beam_medium --n_beams 128 --from_scratch
 ```
 Beam 256 design from scratch BayesDesign
 ```
-python3 design.py --model_name bayes_design --protein_id spycatcher --decode_order n_to_c --fixed_positions 9 9 55 55 72 81 --bayes_balance_factor .002  --decode_algorithm beam_medium --n_beams 256 --from_scratch
+bayes-design --model_name bayes_design --protein_id spycatcher --decode_order n_to_c --fixed_positions 9 9 55 55 72 81 --bayes_balance_factor .002  --decode_algorithm beam_medium --n_beams 256 --from_scratch
 ```
 Beam 512 design from scratch BayesDesign
 ```
-python3 design.py --model_name bayes_design --protein_id spycatcher --decode_order n_to_c --fixed_positions 9 9 55 55 72 81 --bayes_balance_factor .002  --decode_algorithm beam_medium --n_beams 512 --from_scratch
+bayes-design --model_name bayes_design --protein_id spycatcher --decode_order n_to_c --fixed_positions 9 9 55 55 72 81 --bayes_balance_factor .002  --decode_algorithm beam_medium --n_beams 512 --from_scratch
 ```
 
 Greedy design from scratch ProteinMPNN
 ```
-python3 design.py --model_name protein_mpnn --protein_id spycatcher --decode_order n_to_c --fixed_positions 9 9 55 55 72 81 --decode_algorithm greedy --from_scratch
+bayes-design --model_name protein_mpnn --protein_id spycatcher --decode_order n_to_c --fixed_positions 9 9 55 55 72 81 --decode_algorithm greedy --from_scratch
 ```
 Beam 128 design from scratch ProteinMPNN
 ```
-python3 design.py --model_name protein_mpnn --protein_id spycatcher --decode_order n_to_c --fixed_positions 9 9 55 55 72 81 --decode_algorithm beam_medium --n_beams 128 --from_scratch
+bayes-design --model_name protein_mpnn --protein_id spycatcher --decode_order n_to_c --fixed_positions 9 9 55 55 72 81 --decode_algorithm beam_medium --n_beams 128 --from_scratch
 ```
 Beam 256 design from scratch ProteinMPNN
 ```
-python3 design.py --model_name protein_mpnn --protein_id spycatcher --decode_order n_to_c --fixed_positions 9 9 55 55 72 81 --decode_algorithm beam_medium --n_beams 256 --from_scratch
+bayes-design --model_name protein_mpnn --protein_id spycatcher --decode_order n_to_c --fixed_positions 9 9 55 55 72 81 --decode_algorithm beam_medium --n_beams 256 --from_scratch
 ```
 Beam 512 design from scratch ProteinMPNN
 ```
-python3 design.py --model_name protein_mpnn --protein_id spycatcher --decode_order n_to_c --fixed_positions 9 9 55 55 72 81 --decode_algorithm beam_medium --n_beams 512 --from_scratch
+bayes-design --model_name protein_mpnn --protein_id spycatcher --decode_order n_to_c --fixed_positions 9 9 55 55 72 81 --decode_algorithm beam_medium --n_beams 512 --from_scratch
 ```
 
 # SpyCatcher Extended
@@ -483,12 +483,12 @@ greedy design from scratch,
 
 Greedy design from scratch BayesDesign
 ```
-python3 design.py --model_name bayes_design --protein_id spycatcher_long --decode_order n_to_c --fixed_positions 10 10 56 56 83 93 --bayes_balance_factor .002 --decode_algorithm greedy
+bayes-design --model_name bayes_design --protein_id spycatcher_long --decode_order n_to_c --fixed_positions 10 10 56 56 83 93 --bayes_balance_factor .002 --decode_algorithm greedy
 ```
 Greedy design from scratch ProteinMPNN
 ```
-python3 design.py --model_name protein_mpnn --protein_id spycatcher_long --decode_order n_to_c --fixed_positions 10 10 56 56 83 93 --bayes_balance_factor .002 --decode_algorithm greedy
+bayes-design --model_name protein_mpnn --protein_id spycatcher_long --decode_order n_to_c --fixed_positions 10 10 56 56 83 93 --bayes_balance_factor .002 --decode_algorithm greedy
 ```
 
 # Steered evolution
-python3 design.py --model_name bayes_design --protein_id nanoluc --decode_order n_to_c --decode_algorithm combinations --fixed_positions 1 47 54 83 93 167 172 179
+bayes-design --model_name bayes_design --protein_id nanoluc --decode_order n_to_c --decode_algorithm combinations --fixed_positions 1 47 54 83 93 167 172 179

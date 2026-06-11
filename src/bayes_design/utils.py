@@ -31,6 +31,66 @@ def get_protein(pdb_code="6MRR", structures_dir="./data/structures"):
     return protein["seq"], struct
 
 
+def get_ligand(pdb_code="6MRR", structures_dir="./data/structures", chain_list=("A",), ligand_file=None):
+    """Parse a protein and its bound ligand into a LigandMPNN input dict.
+
+    Returns the dict consumed by LigandMPNN's ``featurize`` (backbone ``X``,
+    sequence ``S``, ``mask``, ligand atoms ``Y``/``Y_t``/``Y_m``, residue indices,
+    chain labels, plus an all-ones ``chain_mask`` which featurize requires but
+    parse_PDB does not set). Protein residues come from ``chain_list`` while
+    ligand atoms are taken from HETATM records across *all* chains (so a ligand
+    on another chain is still captured); waters are dropped by parse_PDB. Pass
+    ``ligand_file`` to merge ligand atoms from a separate PDB.
+    """
+    from .ligand_mpnn.data_utils import parse_PDB as parse_PDB_ligand
+
+    pdb_path = os.path.join(structures_dir, pdb_code + ".pdb")
+    if not os.path.exists(pdb_path):
+        os.system(f"cd {structures_dir} && wget -qnc https://files.rcsb.org/view/{pdb_code}.pdb")
+
+    ligand_source = pdb_path
+    if ligand_file is not None:
+        ligand_source = _merge_ligand_into_pdb(pdb_path, ligand_file, structures_dir, pdb_code)
+
+    input_dict, *_ = parse_PDB_ligand(pdb_path, chains=list(chain_list))
+    full_dict, *_ = parse_PDB_ligand(ligand_source, chains=[])
+    for key in ("Y", "Y_t", "Y_m"):
+        input_dict[key] = full_dict[key]
+
+    input_dict["chain_mask"] = torch.ones_like(input_dict["mask"], dtype=torch.float32)
+    return input_dict
+
+
+def seq_struct_from_ligand(input_dict):
+    """Derive (seq string, L x 4 x 3 struct) from a `get_ligand` dict.
+
+    Ligand-aware modes must take the sequence and backbone from the same
+    LigandMPNN parse that produced the ligand features, because the LigandMPNN
+    and ProteinMPNN parsers can disagree on the residue set (e.g. insertion
+    codes); the decode loop's sequence length must match the bound features.
+    """
+    seq = "".join(AMINO_ACID_ORDER[int(i)] for i in input_dict["S"].tolist())
+    struct = input_dict["X"].float()  # already N, CA, C, O ordered
+    return seq, struct
+
+
+def _merge_ligand_into_pdb(pdb_path, ligand_file, structures_dir, pdb_code):
+    """Append a separate ligand file's HETATM records onto the protein PDB so
+    parse_PDB's element/coordinate logic captures the externally-supplied ligand."""
+    with open(pdb_path) as f:
+        protein_lines = [ln for ln in f if not ln.startswith(("END", "CONECT"))]
+    # Only HETATM records contribute ligand atoms; ATOM records (protein) are
+    # ignored so passing a full complex PDB does not duplicate the protein.
+    with open(ligand_file) as f:
+        ligand_lines = [ln for ln in f if ln.startswith("HETATM")]
+    combined_path = os.path.join(structures_dir, f"{pdb_code}_with_ligand.pdb")
+    with open(combined_path, "w") as f:
+        f.writelines(protein_lines)
+        f.writelines(ligand_lines)
+        f.write("END\n")
+    return combined_path
+
+
 def get_fixed_position_mask(fixed_position_list, seq_len):
     # Masked positions are the positions to predict/design
     # Default to no fixed positions, and thus predict all positions
