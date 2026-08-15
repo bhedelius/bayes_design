@@ -5,8 +5,9 @@ whether any of it reaches enzyme catalysis. The work began as a B-factor questio
 and moved well past it; what is kept here is the measurements and, deliberately,
 the hypotheses that died and the controls that killed them.
 
-Nothing here is a design method yet. The honest summary is that the design-side
-findings are solid and the catalysis-side findings are uniformly negative.
+Nothing here is a design method yet. The design-side findings are solid. The
+catalysis side was uniformly negative until H3 (landscape flatness), which is the
+one positive and is reported in Part 3 with its caveats attached.
 
 ---
 
@@ -122,7 +123,7 @@ Four hypotheses, from enzymology rather than from what was convenient to measure
 |---|---|---|
 | **H1 preorganization** | Warshel | **untestable from static structures** |
 | **H2 conditional frustration** | Wolynes / Ferreiro | not supported |
-| **H3 landscape flatness** | Albery & Knowles | never tested |
+| **H3 landscape flatness** | Albery & Knowles | **supported** — see Part 3 |
 | **H4 null** | — | consistent with everything, not established |
 
 ### H1 could not be measured, and that is the finding
