@@ -1,0 +1,19 @@
+[
+ {
+  "pdb": "3EST",
+  "tier": "natural",
+  "label": "elastase",
+  "ser": "A195",
+  "apo_triad": 0.98,
+  "apo_oxy": NaN,
+  "TI1_triad": 0.98,
+  "TI1_oxy": 1.0,
+  "AEI_triad": 0.94,
+  "AEI_oxy": 1.0,
+  "TI2_triad": 0.9,
+  "TI2_oxy": 0.94,
+  "level": 0.95,
+  "spread": 0.03829708431025351,
+  "minstate": 0.9
+ }
+]

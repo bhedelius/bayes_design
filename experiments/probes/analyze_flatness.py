@@ -61,6 +61,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--glob", default="placer_flatness_*.json")
     ap.add_argument("--out", default="flatness_analysis.json")
+    ap.add_argument("--perm", type=int, default=5000, help="label shuffles for the null")
     a = ap.parse_args()
 
     rows = []
@@ -133,8 +134,56 @@ def main():
     else:
         print("  => spread adds nothing beyond level. H3 not supported by this test.")
 
+    # The chi2 p-value assumes the asymptotic null, which fails under quasi-
+    # separation - and large |beta| is exactly that symptom. Permuting the labels
+    # rebuilds the null distribution of the LR statistic without that assumption.
+    rng = np.random.default_rng(0)
+    null = np.empty(a.perm)
+    for i in range(a.perm):
+        yp = rng.permutation(lab)
+        _, l0 = fit_logistic(X0, yp)
+        _, l1 = fit_logistic(X1, yp)
+        null[i] = 2 * (l1 - l0)
+    p_perm = float((np.sum(null >= lr) + 1) / (a.perm + 1))
+    print(f"  permutation p     : {p_perm:.4f}  ({a.perm} label shuffles; "
+          f"null median chi2 = {np.median(null):.2f})")
+
+    # Leave-one-out AUC: does adding spread actually predict held-out labels?
+    def loo_scores(X):
+        s = np.empty(len(lab))
+        for i in range(len(lab)):
+            m = np.ones(len(lab), bool)
+            m[i] = False
+            b, _ = fit_logistic(X[m], lab[m])
+            s[i] = X[i] @ b
+        return s
+
+    a0 = auc(loo_scores(X0)[lab == 1], loo_scores(X0)[lab == 0])
+    a1 = auc(loo_scores(X1)[lab == 1], loo_scores(X1)[lab == 0])
+    print(f"  leave-one-out AUC : level only = {a0:.3f}   level + spread = {a1:.3f}")
+
+    # Internal control. The natural/designed split is a *proxy* for catalytic
+    # quality, and naturals differ from designs in many ways besides being good
+    # catalysts. Within the design series the round number is an independent,
+    # finer-grained quality proxy (later rounds were selected to be better), so
+    # if flatness tracks catalysis it should fall with round. If it rises, the
+    # between-group result is probably not about catalysis at all.
+    rounds = [(int(r["label"].split("(r")[1].split(")")[0]), r["spread"])
+              for r in des if "(r" in r["label"]]
+    if len(rounds) >= 4:
+        rr = np.array([x[0] for x in rounds], float)
+        ss = np.array([x[1] for x in rounds])
+        rho = stats.spearmanr(rr, ss)
+        print(f"\n  within designs, spread vs round: Spearman = {rho.statistic:+.3f} "
+              f"(p = {rho.pvalue:.3f}, n = {len(rounds)})")
+        print("  H3 expects LATER rounds to be flatter -> negative. Positive undercuts it.")
+        res["within_design_spread_vs_round"] = {"rho": float(rho.statistic),
+                                                "p": float(rho.pvalue), "n": len(rounds)}
+
     res["conditional"] = {"ll_level": ll0, "ll_level_spread": ll1, "lr_chi2": float(lr),
-                          "p": p_lr, "beta_level": float(b1[1]), "beta_spread": float(b1[2])}
+                          "p": p_lr, "p_perm": p_perm, "loo_auc_level": a0,
+                          "loo_auc_level_spread": a1,
+                          "beta_level": float(b1[1]), "beta_spread": float(b1[2])}
     res["n_natural"], res["n_designed"] = len(nat), len(des)
     json.dump({"rows": rows, "stats": res}, open(a.out, "w"), indent=1)
     print(f"\nwrote {a.out}")

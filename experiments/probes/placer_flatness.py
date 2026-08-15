@@ -130,13 +130,17 @@ def find_triad(atoms):
 
 
 def run_placer(placer_dir, venv, ifile, odir, suffix, ser, code, nsamples, gpu):
+    # --target_res is required in EVERY state, not just apo. PLACER crops ~600
+    # atoms and, without it, centres the crop on whatever heteroatom it finds -
+    # which for a structure whose only het is a distant ion puts the crop nowhere
+    # near the active site. That failure is silent: the run exits 0 and the
+    # ensemble simply does not contain the triad.
     cmd = [venv, os.path.join(placer_dir, "run_PLACER.py"), "--ifile", ifile,
-           "--odir", odir, "--suffix", suffix, "-n", str(nsamples)]
+           "--odir", odir, "--suffix", suffix, "-n", str(nsamples),
+           "--target_res", f"{ser[0]}-{ser[1]}"]
     if code:
         cmd += ["--mutate", f"{ser[1]}{ser[0]}:{code}", "--residue_json",
                 os.path.join(placer_dir, "examples", "ligands", f"{code}.json"), "--no-use_sm"]
-    else:
-        cmd += ["--target_res", f"{ser[0]}-{ser[1]}"]
     # Inherit CUDA_VISIBLE_DEVICES from the caller when sharding across GPUs;
     # overriding it here would pin every shard to the same physical device.
     env = os.environ.copy()
@@ -153,7 +157,7 @@ def measure(ens_pdb, triad):
     """Per-frame: is the triad intact, and is the oxyanion hole occupied?"""
     _, ser, his, acid, _, _ = triad
     nmodels = sum(1 for ln in open(ens_pdb) if ln.startswith("MODEL"))
-    tri, oxy = [], []
+    tri, oxy, missing = [], [], 0
     for m in range(1, nmodels + 1):
         at = read_atoms(ens_pdb, model=m)
         idx = {}
@@ -165,6 +169,10 @@ def measure(ens_pdb, triad):
         acids = [v for (c, r, n), v in idx.items()
                  if (c, r) == acid and n in ("OD1", "OD2", "OE1", "OE2")]
         if og is None or ne2 is None or nd1 is None or not acids:
+            # Absent triad atoms mean the crop missed the active site, not that
+            # the interaction is broken. Counted, and raised on below - scoring
+            # these as "not formed" is how a cropping bug masquerades as a result.
+            missing += 1
             tri.append(False)
             oxy.append(False)
             continue
@@ -178,7 +186,13 @@ def measure(ens_pdb, triad):
             donors = [v for (c, r, n), v in idx.items()
                       if n == "N" and np.linalg.norm(v - oac) <= HB]
             oxy.append(len(donors) >= 2)
-    return float(np.mean(tri)), float(np.nanmean(np.array(oxy, dtype=float))), nmodels
+    if missing > 0.2 * nmodels:
+        raise RuntimeError(f"triad atoms absent from {missing}/{nmodels} frames - "
+                           "crop missed the active site")
+    with np.errstate(invalid="ignore"):
+        oxyf = float(np.nanmean(np.array(oxy, dtype=float))) if any(
+            not isinstance(v, float) or not np.isnan(v) for v in oxy) else float("nan")
+    return float(np.mean(tri)), oxyf, nmodels
 
 
 def main():

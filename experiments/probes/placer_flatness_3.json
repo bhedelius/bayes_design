@@ -1,0 +1,36 @@
+[
+ {
+  "pdb": "1SBT",
+  "tier": "natural",
+  "label": "subtilisin",
+  "ser": "A221",
+  "apo_triad": 0.32,
+  "apo_oxy": NaN,
+  "TI1_triad": 0.06,
+  "TI1_oxy": 0.0,
+  "AEI_triad": 0.16,
+  "AEI_oxy": 0.02,
+  "TI2_triad": 0.0,
+  "TI2_oxy": 0.0,
+  "level": 0.135,
+  "spread": 0.1398809017223819,
+  "minstate": 0.0
+ },
+ {
+  "pdb": "1QE3",
+  "tier": "natural",
+  "label": "esterase EST2",
+  "ser": "A189",
+  "apo_triad": 1.0,
+  "apo_oxy": NaN,
+  "TI1_triad": 1.0,
+  "TI1_oxy": 0.72,
+  "AEI_triad": 1.0,
+  "AEI_oxy": 1.0,
+  "TI2_triad": 1.0,
+  "TI2_oxy": 0.02,
+  "level": 1.0,
+  "spread": 0.0,
+  "minstate": 1.0
+ }
+]

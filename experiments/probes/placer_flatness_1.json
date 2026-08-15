@@ -1,0 +1,53 @@
+[
+ {
+  "pdb": "3PTB",
+  "tier": "natural",
+  "label": "trypsin",
+  "ser": "A195",
+  "apo_triad": 0.98,
+  "apo_oxy": NaN,
+  "TI1_triad": 0.8,
+  "TI1_oxy": 0.82,
+  "AEI_triad": 0.7,
+  "AEI_oxy": 1.0,
+  "TI2_triad": 0.8,
+  "TI2_oxy": 0.26,
+  "level": 0.8200000000000001,
+  "spread": 0.116619037896906,
+  "minstate": 0.7
+ },
+ {
+  "pdb": "6EQE",
+  "tier": "natural",
+  "label": "PETase",
+  "ser": "A160",
+  "apo_triad": 0.88,
+  "apo_oxy": NaN,
+  "TI1_triad": 0.56,
+  "TI1_oxy": 0.38,
+  "AEI_triad": 0.48,
+  "AEI_oxy": 1.0,
+  "TI2_triad": 0.56,
+  "TI2_oxy": 0.4,
+  "level": 0.62,
+  "spread": 0.1773884626086676,
+  "minstate": 0.48
+ },
+ {
+  "pdb": "9MRB",
+  "tier": "design",
+  "label": "dadt1 (r4)",
+  "ser": "A142",
+  "apo_triad": 0.36,
+  "apo_oxy": NaN,
+  "TI1_triad": 0.98,
+  "TI1_oxy": 0.96,
+  "AEI_triad": 0.92,
+  "AEI_oxy": 0.44,
+  "TI2_triad": 0.92,
+  "TI2_oxy": 0.86,
+  "level": 0.7949999999999999,
+  "spread": 0.29137604568666936,
+  "minstate": 0.36
+ }
+]

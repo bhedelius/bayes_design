@@ -322,6 +322,72 @@ remain: run PLACER ourselves on the deposited design structures (9DED, 9DEE, 9DE
 9DEG, 9DEH, 9MRB) and score flatness against their published kinetics, or ask the
 authors for the screening table.
 
+### H3 tested: evolved hydrolases are flatter, and the level says nothing
+
+First direct test of H3, and the first positive result on the catalysis side.
+
+PLACER generates conformational ensembles for a protein with a covalent reaction
+intermediate grafted onto the catalytic serine. Four states are scored per enzyme
+(`make_reaction_states.py`, `placer_flatness.py`): **apo, TI1, AEI, TI2**. The
+per-state readout is the fraction of 50 ensemble frames with the catalytic triad
+intact — His NE2 to Ser Ogamma, His ND1 to the Asp/Glu carboxylate — a definition
+identical in all four states, which is what makes the spread comparable.
+
+11 natural serine hydrolases against 6 deposited designs from Lauko 2025:
+
+| predictor | natural | designed | rank-sum p |
+|---|---|---|---|
+| **level** (mean over states) | 0.848 ± 0.080 | 0.867 ± 0.037 | 0.51 |
+| **spread** (SD over states) | **0.059 ± 0.019** | **0.162 ± 0.043** | 0.096 |
+
+The level does not separate them at all — designs are marginally *higher*. The
+spread separates them roughly threefold, in the direction H3 predicts.
+
+Conditional test, which is the one that matters:
+
+| | |
+|---|---|
+| LR chi2(1), level+spread vs level | 13.69 |
+| asymptotic p | 0.0002 |
+| **permutation p** (5000 shuffles) | **0.0024** |
+| leave-one-out AUC | 0.000 → 0.818 |
+
+The fitted coefficients are large (beta_spread = −10.4), the signature of
+quasi-separation, so the asymptotic p is not trustworthy on its own; the
+permutation null (median chi2 = 0.66) is what carries the claim.
+
+**The caveats, which are substantial:**
+
+- n = 17, and the 6 designs are the *crystallised* ones, i.e. successes. This is
+  natural-vs-designed as a proxy for good-vs-bad catalyst, not measured k_cat.
+- **Internal control is a wash, leaning against**: within the design series,
+  spread vs round gives Spearman +0.309 (p = 0.55, n = 6). H3 expects later,
+  better rounds to be flatter — this leans the other way, far from significantly.
+- Every enzyme is modelled with the same butyryl acyl group, which is wrong for
+  chymotrypsin, AChE and the lipases specifically.
+- Subtilisin is an outlier (level 0.135) and 1SBT is a low-resolution structure.
+
+So: a real positive on a pre-registered prediction with the controls attached,
+and not yet a result about catalysis until it is repeated against measured rates.
+
+### The bug that produced the first, opposite answer
+
+Worth recording because it nearly became a finding. The first run had 8 of 12
+natural enzymes scoring **exactly 0.000** at all three ligand states with apo
+≈ 1.0, and the analysis duly reported H3 unsupported.
+
+Chymotrypsin and AChE obviously form these intermediates — that is their
+mechanism — so the zeros were the tell. PLACER crops ~600 atoms around the
+ligand, and under `--mutate` alone it centres that crop on whatever heteroatom
+exists. Structures whose only heteroatom was the chloride placeholder got a crop
+nowhere near the active site: the triad atoms were simply absent, and `measure()`
+scored every frame as "not formed". The run exited 0 and printed nothing.
+
+Passing `--target_res` in every state fixes it; chymotrypsin goes from 0.000 to
+1.000 across all four. `measure()` now raises when triad atoms are missing from
+more than 20% of frames, rather than silently returning zero — an absent atom and
+a broken interaction must not be the same number.
+
 ---
 
 ## Methodological notes
@@ -362,6 +428,9 @@ ke07_stiffness.py       KE07 trajectory: active-site stiffness
 ke07_site_vs_rest.py    site-specific vs global likelihood control
 preorganization.py      ligand-masking KL along evolution trajectories
 validate_reorg.py       positive control + noise floor for that metric
+make_reaction_states.py derive TI1/AEI from the one PLACER ships
+placer_flatness.py      four-state PLACER ensembles, triad-intact fractions
+analyze_flatness.py     level vs spread, with permutation + LOO controls
 ts_sensitivity.py       ligand-displacement resolution curve (GS/TS feasibility)
 apo_holo_preorg.py      H1 via apo/holo coordinates (confounded)
 catalysis_hypotheses.py H1/H2 on matched design->evolved pairs
