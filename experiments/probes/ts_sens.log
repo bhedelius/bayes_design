@@ -1,0 +1,40 @@
+5RGE: L=300  ligand atoms parsed=12 (of 16 written), protein contacts<5A=671
+  ligand B-factors: mean=15.4 A^2 -> u_rms=0.44 A, max -> u_max=0.49 A
+  site positions (<6.0 A): 12   far positions (>15.0 A): 36
+ligand_mpnn loaded (use_ligand=True)
+
+  CEILING  KL(holo||apo): site=0.3496  far=0.0022 nats
+
+  translate d=0.10 A   KL_site=0.0023+/-0.0011  (  0.7% of ceiling)   KL_far=0.0000
+  translate d=0.20 A   KL_site=0.0100+/-0.0063  (  2.9% of ceiling)   KL_far=0.0000
+  translate d=0.30 A   KL_site=0.0339+/-0.0194  (  9.7% of ceiling)   KL_far=0.0000
+  translate d=0.50 A   KL_site=0.0562+/-0.0230  ( 16.1% of ceiling)   KL_far=0.0000
+  translate d=0.75 A   KL_site=0.1639+/-0.0764  ( 46.9% of ceiling)   KL_far=0.0000
+  translate d=1.00 A   KL_site=0.2417+/-0.1495  ( 69.1% of ceiling)   KL_far=0.0000
+  translate d=1.50 A   KL_site=0.3932+/-0.1712  (112.5% of ceiling)   KL_far=0.0001
+  translate d=2.00 A   KL_site=0.3890+/-0.1056  (111.3% of ceiling)   KL_far=0.0001
+  translate d=3.00 A   KL_site=0.5953+/-0.1522  (170.3% of ceiling)   KL_far=0.0001
+  translate d=5.00 A   KL_site=0.6441+/-0.1297  (184.2% of ceiling)   KL_far=0.0003
+  translate d=8.00 A   KL_site=0.4621+/-0.0938  (132.2% of ceiling)   KL_far=0.0010
+  rotate    d=0.10 A   KL_site=0.0081+/-0.0025  (  2.3% of ceiling)   KL_far=0.0000
+  rotate    d=0.20 A   KL_site=0.0118+/-0.0056  (  3.4% of ceiling)   KL_far=0.0000
+  rotate    d=0.30 A   KL_site=0.0480+/-0.0269  ( 13.7% of ceiling)   KL_far=0.0000
+  rotate    d=0.50 A   KL_site=0.1495+/-0.0620  ( 42.7% of ceiling)   KL_far=0.0000
+  rotate    d=0.75 A   KL_site=0.1719+/-0.1021  ( 49.2% of ceiling)   KL_far=0.0000
+  rotate    d=1.00 A   KL_site=0.2559+/-0.1171  ( 73.2% of ceiling)   KL_far=0.0000
+  rotate    d=1.50 A   KL_site=0.4939+/-0.0570  (141.3% of ceiling)   KL_far=0.0001
+  rotate    d=2.00 A   KL_site=0.5882+/-0.1144  (168.2% of ceiling)   KL_far=0.0000
+  rotate    d=3.00 A   KL_site=0.3595+/-0.2004  (102.8% of ceiling)   KL_far=0.0001
+  rotate    d=5.00 A   KL_site=0.5407+/-0.2237  (154.6% of ceiling)   KL_far=0.0001
+  rotate    d=8.00 A   KL_site=0.4449+/-0.1539  (127.2% of ceiling)   KL_far=0.0001
+
+============================================================================
+Can a GS->TS displacement clear the noise floor and the data resolution?
+============================================================================
+  spatial noise floor (max KL beyond 15 A) = 0.0010 nats
+  site signal first exceeds 3x that floor at d = 0.20 A (2.9% of the ligand ceiling)
+  ligand's own coordinate uncertainty      u_rms = 0.44 A
+  A differential smaller than u_rms is below the resolution of the input data.
+
+  Chemistry to compare against: proton transfer / partial bond elongation
+  moves heavy atoms ~0.2-0.5 A; planar->tetrahedral at a carbonyl ~0.5-0.8 A.

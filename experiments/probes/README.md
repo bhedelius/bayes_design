@@ -220,6 +220,86 @@ a regularisation artifact.
 
 ---
 
+## Part 3 — The differential objective, and why the target moved
+
+Every metric in Part 2 scores a **single state**. Rate does not depend on a single
+state: `ΔΔG‡ = ΔG(TS) − ΔG(GS)`. The natural fix is a two-context objective —
+score the sequence with the ligand in TS geometry, minus the same sequence with it
+in GS geometry — which `CombinedModel` already expresses (`ligand_selectivity` is
+the same shape, ±1 weights over two contexts).
+
+LigandMPNN sees a ligand as coordinates plus element indices with **no bond graph**
+(`Y`, `Y_t`, `Y_m`). So a GS→TS change is *purely* a coordinate displacement, and
+feasibility becomes one measurable curve, answerable before building any poses.
+
+### The model resolves 0.1 Å; the coordinates do not
+
+`ts_sensitivity.py`, on 5RGE (HG3.17) with the TSA 6NT. Ceiling = removing the
+ligand outright (KL 0.350 nats at the site). Floor = the same perturbation read
+beyond 15 Å.
+
+| displacement | KL at site | % of ceiling | KL beyond 15 Å |
+|---|---|---|---|
+| 0.1 Å | 0.0023 | 0.7% | 0.0000 |
+| 0.3 Å | 0.0339 | 9.7% | 0.0000 |
+| 0.5 Å | 0.0562 | 16.1% | 0.0000 |
+| 1.0 Å | 0.2417 | 69.1% | 0.0000 |
+| 1.5 Å | 0.3932 | 112.5% | 0.0001 |
+
+Signal clears 3× the spatial floor at **0.2 Å**, well inside the 0.2–0.5 Å a proton
+transfer moves heavy atoms. Rigid rotation is more sensitive than translation
+(0.5 Å RMS → 42.7% of ceiling) because it changes which atoms face which residues.
+Past ~1.5 Å the curve exceeds the ceiling: a *misplaced* ligand misleads the model
+more than an absent one.
+
+So sensitivity is not the binding constraint — **pose accuracy is**. 6NT's own
+crystallographic uncertainty is `u_rms = √(B/8π²) = 0.44 Å`, comparable to the
+displacement being resolved. A GS/TS differential built on crystal poses is
+dominated by pose error, not by the chemistry.
+
+This one is worth flagging against the Part 2 pattern: the boring control
+*validated* the idea rather than killing it, and refuted the pessimistic
+prediction that motivated running it.
+
+### The target moved: the bottleneck is the cycle, not the first step
+
+Lauko *et al.*, *Science* 2025 (designed serine hydrolases, RFdiffusion +
+LigandMPNN + ChemNet ensembles) tested ~509 designs across three rounds:
+
+| round | tested | FP-labeled (site reactive) | turnover |
+|---|---|---|---|
+| 1 | 129 | 3 (2.3%) | 2 (1.6%) |
+| 2 | 192 | 33 (17.2%) | 10 (5.2%) |
+| 3 | 132 | **111 (84%)** | **2 (1.5%)** |
+
+Round 3 forms a reactive active site 84% of the time and turns over 1.5% of the
+time. **The first half-reaction is close to solved; the catalytic cycle is not.**
+
+That relocates the problem. A GS→TS differential optimises the step that already
+works. Turnover requires the *whole* cycle, and — Albery & Knowles — a fast enzyme
+has a **level** free-energy profile: no state bound much more tightly than the
+others. Maximising binding at any single state, including the TS, digs a
+thermodynamic pit and yields a stoichiometric binder, not a catalyst.
+
+This is **H3, still the untested hypothesis**, and it now has a benchmark. The
+objective it implies is not a maximum or a difference but a *flatness*: minimise
+the spread of the ligand-conditioned score across the reaction states. That is a
+K-context `CombinedModel` whose terms compute a variance rather than a sum, and it
+makes a falsifiable split prediction:
+
+- single-state score at the TS predicts **FP labeling** but not turnover;
+- flatness across states predicts **turnover**, conditional on FP labeling.
+
+ChemNet already scores geometric preorganisation at each state *independently* and
+requires it to be high everywhere. Nobody scores the differential across states, or
+penalises over-stabilisation of the product. That is the gap.
+
+**Blocking item:** the per-design table (sequences + outcomes) is inside a 25 MB
+`.docx` supplement; bioRxiv and science.org both refuse automated fetches.
+Needs institutional access to pull manually.
+
+---
+
 ## Methodological notes
 
 Two failure modes recurred and are worth stating:
@@ -258,6 +338,7 @@ ke07_stiffness.py       KE07 trajectory: active-site stiffness
 ke07_site_vs_rest.py    site-specific vs global likelihood control
 preorganization.py      ligand-masking KL along evolution trajectories
 validate_reorg.py       positive control + noise floor for that metric
+ts_sensitivity.py       ligand-displacement resolution curve (GS/TS feasibility)
 apo_holo_preorg.py      H1 via apo/holo coordinates (confounded)
 catalysis_hypotheses.py H1/H2 on matched design->evolved pairs
 q50_supervised.py       pre-registered test on the labelled Gln50 series
