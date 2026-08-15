@@ -264,7 +264,7 @@ prediction that motivated running it.
 ### The target moved: the bottleneck is the cycle, not the first step
 
 Lauko *et al.*, *Science* 2025 (designed serine hydrolases, RFdiffusion +
-LigandMPNN + ChemNet ensembles) tested ~509 designs across three rounds:
+LigandMPNN + **PLACER** ensembles) tested ~509 designs across three rounds:
 
 | round | tested | FP-labeled (site reactive) | turnover |
 |---|---|---|---|
@@ -290,13 +290,37 @@ makes a falsifiable split prediction:
 - single-state score at the TS predicts **FP labeling** but not turnover;
 - flatness across states predicts **turnover**, conditional on FP labeling.
 
-ChemNet already scores geometric preorganisation at each state *independently* and
-requires it to be high everywhere. Nobody scores the differential across states, or
-penalises over-stabilisation of the product. That is the gap.
+PLACER already scores geometric preorganisation at each state *independently* and
+requires it to be high everywhere. Nobody scores the spread across states, or
+penalises over-stabilisation of any one intermediate. That is the gap.
 
-**Blocking item:** the per-design table (sequences + outcomes) is inside a 25 MB
-`.docx` supplement; bioRxiv and science.org both refuse automated fetches.
-Needs institutional access to pull manually.
+### The paper's own figure already leans this way
+
+PLACER models four states — **apo, TI1, AEI, TI2** — and reports the fraction of
+ensemble frames with all key hydrogen bonds simultaneously formed. Fig. S3
+compares designs against 13 natural hydrolases by K-S test:
+
+| state | apo | TI1 | AEI | TI2 |
+|---|---|---|---|---|
+| designs vs natural, p | 0.09 | **4.9e-7** | 0.03 | **1e-4** |
+
+Designs are indistinguishable from natural enzymes in the **apo** state and diverge
+sharply at the **intermediates**. That is an uneven profile — right at the start,
+wrong through the middle — which is the shape H3 predicts, measured by the authors
+without being framed as a flatness claim.
+
+### Status of the benchmark: worse than expected
+
+The per-design table (~509 sequences with pass/fail outcomes) **is not published**.
+Checked and ruled out: the bioRxiv `.docx` supplement (figures only, no tables),
+the *Science* SM (Table S1 lists only the ~18 *kinetically or structurally
+analysed* designs across 11 rounds), and the Zenodo archive
+(`10.5281/zenodo.14642126` — 125 MB, code only, mirrors the GitHub repo).
+
+So the actives/inactives benchmark cannot be assembled by scraping. Two routes
+remain: run PLACER ourselves on the deposited design structures (9DED, 9DEE, 9DEF,
+9DEG, 9DEH, 9MRB) and score flatness against their published kinetics, or ask the
+authors for the screening table.
 
 ---
 
