@@ -8,3 +8,7 @@ probs/
 logs/
 *.npz
 __pycache__/
+placer_out/
+logs_placer/
+states/
+ts_sens.log

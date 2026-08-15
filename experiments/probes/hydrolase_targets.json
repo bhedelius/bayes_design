@@ -1,0 +1,23 @@
+[
+ {"pdb": "4CHA", "tier": "natural", "label": "chymotrypsin"},
+ {"pdb": "3PTB", "tier": "natural", "label": "trypsin"},
+ {"pdb": "3EST", "tier": "natural", "label": "elastase"},
+ {"pdb": "1SBT", "tier": "natural", "label": "subtilisin"},
+ {"pdb": "2PRK", "tier": "natural", "label": "proteinase K"},
+ {"pdb": "1CEX", "tier": "natural", "label": "cutinase"},
+ {"pdb": "1EA5", "tier": "natural", "label": "acetylcholinesterase"},
+ {"pdb": "1CRL", "tier": "natural", "label": "lipase CRL"},
+ {"pdb": "1PPB", "tier": "natural", "label": "thrombin"},
+ {"pdb": "6EQE", "tier": "natural", "label": "PETase"},
+ {"pdb": "1MPX", "tier": "natural", "label": "alpha-lytic protease"},
+ {"pdb": "1QE3", "tier": "natural", "label": "esterase EST2"},
+
+ {"pdb": "9DED", "tier": "design", "label": "n8 (r0)"},
+ {"pdb": "9DEE", "tier": "design", "label": "super (r3)"},
+ {"pdb": "9DEF", "tier": "design", "label": "win (r3)"},
+ {"pdb": "9DEG", "tier": "design", "label": "win1 (r4)"},
+ {"pdb": "9DEH", "tier": "design", "label": "win31 (r4)"},
+ {"pdb": "9MRB", "tier": "design", "label": "dadt1 (r4)"},
+
+ {"pdb": "4E5S", "tier": "design_poor", "label": "OSH55 (prior)"}
+]
