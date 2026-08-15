@@ -1,0 +1,10 @@
+residues*.csv
+structures*.json
+curvature.csv
+catalytic_scored.csv
+catpred_input.csv
+pdbs*/
+probs/
+logs/
+*.npz
+__pycache__/
