@@ -9,8 +9,15 @@ description = "Bayesian protein sequence design via probability-model ratios (Ba
 readme = "README.md"
 requires-python = ">=3.9"
 license = { file = "LICENSE" }
+# Core: everything a design run needs (bayes_design, fold_specificity,
+# protein_mpnn / ligand_mpnn / soluble_mpnn). Heavier, task-specific deps live in
+# the extras below.
 dependencies = [
     "torch",
+    "numpy",
+    "biopython",
+    "prody",
+    # ProtXLNet denominator for the BayesDesign objective.
     "transformers",
     "tokenizers",
     "sentencepiece",
@@ -18,16 +25,15 @@ dependencies = [
     # without it, loading falls back to a tiktoken path that cannot parse the
     # SentencePiece model and raises. Harmless (unused) on transformers 4.x.
     "protobuf",
-    "numpy",
-    "biopython",
-    "prody",
-    "tr-rosetta-pytorch",
-    "matplotlib",
 ]
 
 [project.optional-dependencies]
 dev = ["ruff", "mypy", "pytest"]
+# XLNet fine-tuning (train_xlnet.py); transformers is already a core dep.
 train = ["datasets"]
+# Analysis/plots, the scRMSD pipeline, and the trRosetta comparison model.
+experiments = ["matplotlib", "pandas", "scipy", "tqdm", "tr-rosetta-pytorch"]
+# ESM-IF1 inverse-folding objective (esm_if1 / bayes_design_esm_if1 / ensemble).
 esm = ["fair-esm", "torch-geometric", "torch-scatter", "biotite"]
 
 [project.scripts]

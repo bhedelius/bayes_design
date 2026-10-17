@@ -8,9 +8,6 @@ from pathlib import Path
 import numpy as np
 import torch
 from torch import nn
-from tr_rosetta_pytorch import trRosettaNetwork
-from tr_rosetta_pytorch.cli import DEFAULT_MODEL_PATH
-from tr_rosetta_pytorch.utils import preprocess
 from transformers import XLNetLMHeadModel, XLNetTokenizer
 
 from .protein_mpnn.protein_mpnn_utils import ProteinMPNN
@@ -537,7 +534,14 @@ class BayesDesign(CombinedModel):
 
 
 class TrRosettaWrapper:
+    """trRosetta structure-prediction comparison model.
+
+    Requires the optional ``experiments`` extra (``pip install -e .[experiments]``).
+    """
+
     def __init__(self, data_location="./data/msa", database="./data/uniref30/UniRef30_2022_02", device=None):
+        from tr_rosetta_pytorch import trRosettaNetwork
+        from tr_rosetta_pytorch.cli import DEFAULT_MODEL_PATH
 
         if device is not None:
             self.device = device
@@ -567,6 +571,8 @@ class TrRosettaWrapper:
         Returns:
             distance ((L x L x 37) torch.Tensor): a distogram representing distance bin probabilities
         """
+        from tr_rosetta_pytorch.utils import preprocess
+
         seq_path = os.path.join(self.data_location, f"{seq_id}_{seq}.txt")
         seq_msa_path = os.path.join(self.data_location, f"msa_{seq_id}_{seq}.txt")
         # Make a fasta file with the sequence
