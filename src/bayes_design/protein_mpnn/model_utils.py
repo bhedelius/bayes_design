@@ -283,46 +283,77 @@ class XLNetWrapperForProteinMPNNTraining(nn.Module):
         xlnet_vocab_dict['▁X'] = xlnet_vocab_dict['X']
         self.canonical_idx_to_xlnet_idx = torch.tensor([xlnet_vocab_dict['▁' + aa] for aa in AMINO_ACID_ORDER])
 
-    def forward(self, X, S, mask, chain_M, residue_idx=None, chain_encoding_all=None):
-        """Graph-conditioned sequence model
+    def mask_tokens(self, inputs, valid_residue_mask):
+        """Build XLNet permutation-language-modeling inputs for a residue batch.
+
+        Masks every (non-special, non-padding) token and samples a two-block
+        random factorization order, so each position is predicted from the others
+        in the sampled order. Returns (masked input ids, perm_mask, target_mapping).
+
         Args:
-            mask ((batch_size, max_seq_len) torch.Tensor): Mask indicating residues that are missing in the sequence.
-                Note that max_seq_len is the sequence length of all chains in the batch concatenated together.
-            chain_M ((batch_size, max_seq_len) torch.Tensor): Mask of shape indicating which residues are masked 
-            due to being in different chains of a homo-oligomer. 
-            In order to replicate ProteinMPNN, we would need to have fully connected edges
+            inputs (B x N torch.LongTensor): XLNet token ids (on CPU).
+            valid_residue_mask (B x N torch.BoolTensor): True where a residue is present.
         """
-        device=X.device
+        masked_indices = torch.full(inputs.shape, 1, dtype=torch.bool)
+        target_mapping = torch.zeros((inputs.size(0), inputs.size(1), inputs.size(1)), dtype=torch.float32)
+        for i in range(inputs.size(0)):
+            # Predict every position: the i-th prediction maps to the i-th token.
+            target_mapping[i] = torch.eye(inputs.size(1))
 
-        # Concatenate sequence embeddings for autoregressive decoder
-        h_S = self.W_s(S)
+        special_tokens_mask = torch.tensor(
+            [self.tokenizer.get_special_tokens_mask(val, already_has_special_tokens=True) for val in inputs.tolist()],
+            dtype=torch.bool,
+        )
+        masked_indices.masked_fill_(special_tokens_mask, value=0.0)
+        padding_mask = torch.zeros_like(masked_indices)
+        if self.tokenizer.pad_token is not None:
+            padding_mask = inputs.eq(self.tokenizer.pad_token_id)
+            masked_indices.masked_fill_(padding_mask, value=0.0)
 
-        chain_M = chain_M*mask #update chain_M to include missing regions
-        # Multiplying by chain_M and sorting places masked residues at the end of the sequence
-        decoding_order = torch.argsort((chain_M+0.0001)*(torch.abs(torch.randn(chain_M.shape, device=device))))
-        
-        mask_size = E_idx.shape[1]
-        # Get mask_size from different object
-        mask_size = mask.shape[1]
-        permutation_matrix_reverse = torch.nn.functional.one_hot(decoding_order, num_classes=mask_size).float()
-        # order_mask_backward prevents the decoder from attending to future positions
-        order_mask_backward = torch.einsum('ij, biq, bjp->bqp',(1-torch.triu(torch.ones(mask_size,mask_size, device=device))), permutation_matrix_reverse, permutation_matrix_reverse)
+        # Functional tokens are real present residues; everything else is non-functional.
+        non_func_mask = ~(padding_mask | special_tokens_mask | ~valid_residue_mask)
 
-        # mask attend gets the subset of the order mask that pertains to the nodes that the current node is connected to based on the edges
-        mask_1D = mask.view([mask.size(0), mask.size(1), 1, 1])
-        mask_bw = mask_1D * mask_attend
-        mask_fw = mask_1D * (1. - mask_attend)
+        inputs[masked_indices] = self.tokenizer.mask_token_id
 
-        h_EXV_encoder_fw = mask_fw * h_EXV_encoder
-        # There are three decoder recycles
-        for layer in self.decoder_layers:
-            h_ESV = cat_neighbors_nodes(h_V, h_S, E_idx)
-            h_ESV = mask_bw * h_ESV + h_EXV_encoder_fw
-            h_V = torch.utils.checkpoint.checkpoint(layer, h_V, h_ESV, mask)
+        perm_mask = torch.zeros((inputs.size(0), inputs.size(1), inputs.size(1)), dtype=torch.float32)
+        for i in range(inputs.size(0)):
+            # Sample a factorization order in two non-crossing halves (XLNet recipe;
+            # assumes an even sequence length).
+            perm_index = torch.arange(inputs.size(1))
+            perm_index = perm_index.reshape((-1, inputs.size(1) // 2)).transpose(0, 1)
+            perm_index = perm_index[torch.randperm(inputs.size(1) // 2)]
+            perm_index = torch.flatten(perm_index.transpose(0, 1))
+            # Non-masked functional tokens get order -1: visible to all, seeing no masked token.
+            perm_index.masked_fill_(~masked_indices[i] & non_func_mask[i], -1)
+            perm_mask[i] = (
+                perm_index.reshape((inputs.size(1), 1)) <= perm_index.reshape((1, inputs.size(1)))
+            ) & masked_indices[i]
 
-        logits = self.W_out(h_V)
-        log_probs = F.log_softmax(logits, dim=-1)
-        return log_probs
+        return inputs.long(), perm_mask, target_mapping
+
+    def forward(self, X, S, mask, chain_M, residue_idx=None, chain_encoding_all=None):
+        """Return per-residue log-probabilities over the 21 canonical amino acids.
+
+        Args:
+            S ((B x N) torch.LongTensor): canonical amino-acid indices.
+            mask ((B x N) torch.Tensor): 1 where a residue is present, 0 if missing.
+            chain_M: present for signature parity with ProteinMPNN; unused here.
+        """
+        device = S.device
+
+        # Canonical -> XLNet token ids, then build permutation-LM inputs on CPU.
+        input_ids = self.canonical_idx_to_xlnet_idx[S.cpu()]
+        valid_residue_mask = mask.bool().cpu()
+        input_ids, perm_mask, target_mapping = self.mask_tokens(input_ids, valid_residue_mask)
+
+        output = self.model(
+            input_ids=input_ids.to(device),
+            perm_mask=perm_mask.to(device),
+            target_mapping=target_mapping.to(device),
+        )
+        # output.logits: B x N x xlnet_vocab -> select the 21 canonical columns.
+        canonical_logits = output.logits[..., self.canonical_idx_to_xlnet_idx.to(device)]
+        return F.log_softmax(canonical_logits, dim=-1)
 
 
 class PositionWiseFeedForward(nn.Module):
