@@ -11,11 +11,13 @@ requires-python = ">=3.9"
 license = { file = "LICENSE" }
 dependencies = [
     "torch",
-    # transformers>=5 mis-loads ProtXLNet's SentencePiece tokenizer (routes it
-    # through a tiktoken converter and fails), breaking every XLNet code path.
-    "transformers<5",
+    "transformers",
     "tokenizers",
     "sentencepiece",
+    # transformers>=5 converts ProtXLNet's SentencePiece tokenizer via protobuf;
+    # without it, loading falls back to a tiktoken path that cannot parse the
+    # SentencePiece model and raises. Harmless (unused) on transformers 4.x.
+    "protobuf",
     "numpy",
     "biopython",
     "prody",
