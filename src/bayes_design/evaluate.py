@@ -32,7 +32,7 @@ def evaluate_log_prob(seq, prob_model, decode_order, fixed_position_mask, mask_t
         seq_to_struct_model (nn.Module): a network taking as input a
     """
     if exclude_aa is None:
-        exclude_aa = ["C"]
+        exclude_aa = []
     n_fixed_positions = int(fixed_position_mask.sum())
     n_predicted_positions = len(seq) - n_fixed_positions
 
@@ -77,7 +77,7 @@ def evaluate_perplexity(
     are excluded from the perplexity calculation.
     """
     if exclude_aa is None:
-        exclude_aa = ["C"]
+        exclude_aa = []
     log_prob = evaluate_log_prob(
         seq=seq,
         prob_model=prob_model,
