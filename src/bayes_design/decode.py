@@ -355,8 +355,11 @@ def beam_decode(
     prob_model, struct, seq, decode_order, fixed_position_mask, exclude_aa, from_scratch, n_beams, **kwargs
 ):
 
-    # Get device of prob_model
-    device = next(prob_model.parameters()).device
+    # Every ProbabilityModel exposes .device; CombinedModel holds its terms in a plain
+    # list, so parameters() is empty and can't be used to find the device.
+    device = getattr(prob_model, "device", None)
+    if device is None:
+        device = next(prob_model.parameters()).device
     # Get available gpu memory
     gpu_mem = torch.cuda.get_device_properties(device).total_memory
     # Get the number of concurrent sequences that can fit on one GPU
