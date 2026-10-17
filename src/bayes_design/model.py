@@ -192,7 +192,7 @@ class XLNetWrapper(ProbabilityModel):
 
 
 class ProteinMPNNWrapper(ProbabilityModel):
-    def __init__(self, device=None):
+    def __init__(self, device=None, struct=None):
         super().__init__()
         if device is not None:
             self.device = device
@@ -200,6 +200,11 @@ class ProteinMPNNWrapper(ProbabilityModel):
             self.device = torch.device("cuda:0")
         else:
             self.device = torch.device("cpu")
+
+        # Optional backbone bound at construction, used instead of the call-time
+        # struct. Lets one term of a CombinedModel score against a fixed structure
+        # (e.g. the decoy fold in multi-state / conformational-specificity design).
+        self.bound_struct = struct
 
         backbone_noise = 0.00  # Std of Gaussian noise added to backbone atoms
         # v_48_030 = version with 48 edges, 0.30A noise (package-relative path)
@@ -245,6 +250,10 @@ class ProteinMPNNWrapper(ProbabilityModel):
 
         N = len(token_to_decode)
         L = len(seq[0])
+        if self.bound_struct is not None:
+            # Clone: forward zeroes NaN rows in place, which would corrupt the
+            # cached backbone on the next call.
+            struct = self.bound_struct.clone()
         assert L == struct.shape[0], "Sequence length must match the number of residues in the provided structure"
 
         # Convert amino acid character to index
@@ -614,8 +623,10 @@ def _backend_xlnet(device, context=None, **kwargs):
 
 
 def _backend_protein_mpnn(device, context=None, **kwargs):
-    # Legacy vanilla ProteinMPNN — uses the call-time struct, not a bound context.
-    return ProteinMPNNWrapper(device=device)
+    # Vanilla ProteinMPNN. `context`, when given, is a raw (L x 4 x 3) backbone
+    # bound as this term's structure (e.g. the decoy fold in fold_specificity);
+    # otherwise the call-time struct is used.
+    return ProteinMPNNWrapper(device=device, struct=context)
 
 
 def _backend_protein_mpnn_ctx(device, context=None, **kwargs):
@@ -691,10 +702,13 @@ OBJECTIVES = {
         {"backend": "soluble_mpnn", "weight": 1.0, "context": "main"},
         {"backend": "xlnet", "weight": -1.0},
     ],
-    # Multi-state / negative design: prefer fold A (main) over decoy fold B.
+    # Conformational specificity / multi-state negative design: prefer the target
+    # fold (main) over a competing fold (decoy). Each term binds a raw backbone, so
+    # the two folds may be different (homologous) structures aligned to a common
+    # length by the CLI; no ligand is involved.
     "fold_specificity": [
-        {"backend": "protein_mpnn_ctx", "weight": 1.0, "context": "main"},
-        {"backend": "protein_mpnn_ctx", "weight": -1.0, "context": "decoy"},
+        {"backend": "protein_mpnn", "weight": 1.0, "context": "main"},
+        {"backend": "protein_mpnn", "weight": -1.0, "context": "decoy"},
     ],
     # Ligand selectivity: bind the main ligand, not ligand B.
     "ligand_selectivity": [

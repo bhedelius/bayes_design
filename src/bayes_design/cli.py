@@ -9,7 +9,14 @@ import torch
 
 from bayes_design.decode import decode_algorithm_dict, decode_order_dict
 from bayes_design.model import build_model, model_dict, objective_uses_context
-from bayes_design.utils import get_fixed_position_mask, get_ligand, get_protein, seq_struct_from_ligand
+from bayes_design.utils import (
+    align_and_crop,
+    get_ball_mask,
+    get_fixed_position_mask,
+    get_ligand,
+    get_protein,
+    seq_struct_from_ligand,
+)
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -70,6 +77,12 @@ def _build_parser() -> argparse.ArgumentParser:
         default=None,
     )
     parser.add_argument("--ligand_file_b", help="PDB with the off-target ligand for ligand_selectivity.", default=None)
+    parser.add_argument(
+        "--ball_mask",
+        help="Free only the residues within a ball around each designed position (instead of fixing exactly "
+        "--fixed_positions). Useful for conformational-specificity design.",
+        action="store_true",
+    )
     return parser
 
 
@@ -83,7 +96,19 @@ def example_design(args: argparse.Namespace) -> dict:
     # Context-aware objectives bind parsed structures/ligands at construction. Source
     # seq/struct from the same LigandMPNN parse so residue counts stay consistent.
     contexts = {}
-    if objective_uses_context(args.model_name):
+    if args.model_name == "fold_specificity":
+        # Conformational-specificity design: score the sequence against the target
+        # fold (main) relative to a competing fold (decoy). Align/crop the two
+        # backbones to a common length so corresponding positions line up; each
+        # fold is bound to its own term as a raw backbone.
+        if args.decoy_id is None:
+            raise ValueError("fold_specificity requires --decoy_id (the competing fold to design against).")
+        seq_decoy, struct_decoy = get_protein(args.decoy_id)
+        _, _, seq, struct, struct_decoy = align_and_crop(seq, seq_decoy, struct, struct_decoy)
+        orig_seq = seq
+        contexts["main"] = struct
+        contexts["decoy"] = struct_decoy
+    elif objective_uses_context(args.model_name):
         contexts["main"] = get_ligand(args.protein_id, ligand_file=args.ligand_file)
         seq, struct = seq_struct_from_ligand(contexts["main"])
         orig_seq = seq
@@ -96,7 +121,11 @@ def example_design(args: argparse.Namespace) -> dict:
         args.model_name, device=device, contexts=contexts, bayes_balance_factor=args.bayes_balance_factor
     )
 
-    fixed_position_mask = get_fixed_position_mask(fixed_position_list=args.fixed_positions, seq_len=len(seq))
+    if args.ball_mask:
+        res_ids = list(range(1, len(seq) + 1))
+        fixed_position_mask = get_ball_mask(fixed_position_list=args.fixed_positions, struct=struct, res_ids=res_ids)
+    else:
+        fixed_position_mask = get_fixed_position_mask(fixed_position_list=args.fixed_positions, seq_len=len(seq))
     masked_seq = "".join(["-" if not fixed else char for char, fixed in zip(seq, fixed_position_mask)])
 
     # Decode order defines the order in which the masked positions are predicted
