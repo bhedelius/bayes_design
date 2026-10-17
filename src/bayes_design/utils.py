@@ -223,28 +223,19 @@ def get_fixed_position_mask_by_res_id(fixed_position_list, res_ids):
     (start, end) residue-id pairs, and a position is fixed when its ``res_ids``
     entry falls in one of those inclusive ranges.
     """
-    full_fixed_position_list = [
-        range(fixed_position_list[i], fixed_position_list[i + 1] + 1)
-        for i in range(0, len(fixed_position_list), 2)
-    ]
-    full_fixed_position_list = {item for sublist in full_fixed_position_list for item in sublist}
-
-    fixed_position_mask = np.zeros(len(res_ids))
-    for i, res_id in enumerate(res_ids):
-        if res_id in full_fixed_position_list:
-            fixed_position_mask[i] = 1
-    return fixed_position_mask
+    fixed_ids = set()
+    for i in range(0, len(fixed_position_list), 2):
+        fixed_ids.update(range(fixed_position_list[i], fixed_position_list[i + 1] + 1))
+    return np.array([1.0 if res_id in fixed_ids else 0.0 for res_id in res_ids])
 
 
 def structure_to_aligned_structure(struct, aligned_seq):
     """Expand ``struct`` onto the gapped ``aligned_seq``, inserting NaN coordinates
     at gap ('-') positions so the structure lines up with the alignment."""
+    new_struct = torch.full((len(aligned_seq), 4, 3), float("nan"))
     unaligned_idx = 0
-    new_struct = torch.zeros(len(aligned_seq), 4, 3)
-    for i in range(len(aligned_seq)):
-        if aligned_seq[i] == "-":
-            new_struct[i] = torch.zeros(4, 3) * float("nan")
-        else:
+    for i, char in enumerate(aligned_seq):
+        if char != "-":
             new_struct[i] = struct[unaligned_idx]
             unaligned_idx += 1
     return new_struct
@@ -280,17 +271,12 @@ def align_and_crop(seq_pro, seq_anti, struct_pro, struct_anti):
     n_end = 0
     while aligned_seq_pro[-(n_end + 1)] == "-":
         n_end += 1
+    end = len(aligned_seq_pro) - n_end
 
-    if n_end == 0:
-        aligned_seq_pro = aligned_seq_pro[n_beg:]
-        aligned_seq_anti = aligned_seq_anti[n_beg:]
-        new_struct_pro = new_struct_pro[n_beg:]
-        new_struct_anti = new_struct_anti[n_beg:]
-    else:
-        aligned_seq_pro = aligned_seq_pro[n_beg:-n_end]
-        aligned_seq_anti = aligned_seq_anti[n_beg:-n_end]
-        new_struct_pro = new_struct_pro[n_beg:-n_end]
-        new_struct_anti = new_struct_anti[n_beg:-n_end]
+    aligned_seq_pro = aligned_seq_pro[n_beg:end]
+    aligned_seq_anti = aligned_seq_anti[n_beg:end]
+    new_struct_pro = new_struct_pro[n_beg:end]
+    new_struct_anti = new_struct_anti[n_beg:end]
 
     # Merge, preferring the pro residue and falling back to 'X' where both gap
     merged_seq = ""
@@ -315,12 +301,11 @@ def get_ball_mask(fixed_position_list, struct, res_ids, radius=8):
         res_ids (list): Residue ids aligned to ``struct``.
         radius (float): Neighborhood radius in angstroms.
     """
-    struct_ca = struct[:, 1]
-    fixed_position_mask = get_fixed_position_mask_by_res_id(fixed_position_list, res_ids)
+    struct_ca = np.asarray(struct[:, 1], dtype=float)  # (L, 3)
+    unfixed = get_fixed_position_mask_by_res_id(fixed_position_list, res_ids) == 0
+    # Pairwise CA-CA distances; free (0) any position within radius of an unfixed
+    # one. NaN gap rows give NaN distances (never < radius), as the old loop did.
+    dists = np.linalg.norm(struct_ca[:, None, :] - struct_ca[None, :, :], axis=-1)
     ball_mask = np.ones(len(res_ids))
-    unfixed_position_mask = fixed_position_mask == 0
-    for i in range(len(res_ids)):
-        if unfixed_position_mask[i]:
-            neighbors_mask = np.linalg.norm(struct_ca - struct_ca[i], axis=-1) < radius
-            ball_mask[neighbors_mask] = 0
+    ball_mask[(dists[unfixed] < radius).any(axis=0)] = 0
     return ball_mask

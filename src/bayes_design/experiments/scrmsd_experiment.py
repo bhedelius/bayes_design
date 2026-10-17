@@ -8,7 +8,7 @@ import ast
 import argparse
 from bayes_design.decode import decode_order_dict, decode_algorithm_dict
 from bayes_design.model import model_dict
-from bayes_design.utils import get_protein, align_and_crop, get_ball_mask
+from bayes_design.utils import get_protein
 from bayes_design.experiments.cath import parse_cath_file
 from bayes_design.experiments.scrmsd import kabsch_alignment, calculate_rmsd, compute_rmsd
 import logging

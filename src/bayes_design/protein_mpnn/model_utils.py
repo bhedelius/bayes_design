@@ -283,65 +283,53 @@ class XLNetWrapperForProteinMPNNTraining(nn.Module):
         xlnet_vocab_dict['▁X'] = xlnet_vocab_dict['X']
         self.canonical_idx_to_xlnet_idx = torch.tensor([xlnet_vocab_dict['▁' + aa] for aa in AMINO_ACID_ORDER])
 
-    def mask_tokens(self, inputs, valid_residue_mask):
+    def mask_tokens(self, inputs):
         """Build XLNet permutation-language-modeling inputs for a residue batch.
 
-        Masks every (non-special, non-padding) token and samples a two-block
-        random factorization order, so each position is predicted from the others
-        in the sampled order. Returns (masked input ids, perm_mask, target_mapping).
+        Masks every (non-special, non-padding) token and samples a random
+        factorization order, so each position is predicted from the others in that
+        order. Returns (masked input ids, perm_mask, target_mapping).
 
         Args:
             inputs (B x N torch.LongTensor): XLNet token ids (on CPU).
-            valid_residue_mask (B x N torch.BoolTensor): True where a residue is present.
         """
-        masked_indices = torch.full(inputs.shape, 1, dtype=torch.bool)
-        target_mapping = torch.zeros((inputs.size(0), inputs.size(1), inputs.size(1)), dtype=torch.float32)
-        for i in range(inputs.size(0)):
-            # Predict every position: the i-th prediction maps to the i-th token.
-            target_mapping[i] = torch.eye(inputs.size(1))
+        B, N = inputs.shape
+        masked_indices = torch.ones(inputs.shape, dtype=torch.bool)
+        # Predict every position: the i-th prediction maps to the i-th token.
+        target_mapping = torch.eye(N, dtype=torch.float32).expand(B, N, N)
 
         special_tokens_mask = torch.tensor(
             [self.tokenizer.get_special_tokens_mask(val, already_has_special_tokens=True) for val in inputs.tolist()],
             dtype=torch.bool,
         )
         masked_indices.masked_fill_(special_tokens_mask, value=0.0)
-        padding_mask = torch.zeros_like(masked_indices)
         if self.tokenizer.pad_token is not None:
-            padding_mask = inputs.eq(self.tokenizer.pad_token_id)
-            masked_indices.masked_fill_(padding_mask, value=0.0)
-
-        # Functional tokens are real present residues; everything else is non-functional.
-        non_func_mask = ~(padding_mask | special_tokens_mask | ~valid_residue_mask)
+            masked_indices.masked_fill_(inputs.eq(self.tokenizer.pad_token_id), value=0.0)
 
         inputs[masked_indices] = self.tokenizer.mask_token_id
 
-        perm_mask = torch.zeros((inputs.size(0), inputs.size(1), inputs.size(1)), dtype=torch.float32)
-        for i in range(inputs.size(0)):
-            # Sample a random factorization order over all positions (XLNet PLM);
-            # works for any sequence length.
-            perm_index = torch.randperm(inputs.size(1))
-            # Non-masked functional tokens get order -1: visible to all, seeing no masked token.
-            perm_index.masked_fill_(~masked_indices[i] & non_func_mask[i], -1)
-            perm_mask[i] = (
-                perm_index.reshape((inputs.size(1), 1)) <= perm_index.reshape((1, inputs.size(1)))
-            ) & masked_indices[i]
+        perm_mask = torch.zeros((B, N, N), dtype=torch.float32)
+        for i in range(B):
+            # Sample a random factorization order over all positions (XLNet PLM).
+            perm_index = torch.randperm(N)
+            perm_mask[i] = (perm_index.reshape((N, 1)) <= perm_index.reshape((1, N))) & masked_indices[i]
 
-        return inputs.long(), perm_mask, target_mapping
+        return inputs, perm_mask, target_mapping
 
     def forward(self, X, S, mask, chain_M, residue_idx=None, chain_encoding_all=None):
         """Return per-residue log-probabilities over the 21 canonical amino acids.
 
         Args:
             S ((B x N) torch.LongTensor): canonical amino-acid indices.
-            mask ((B x N) torch.Tensor): 1 where a residue is present, 0 if missing.
-            chain_M: present for signature parity with ProteinMPNN; unused here.
+            X, mask, chain_M, residue_idx, chain_encoding_all: present for signature
+                parity with ProteinMPNN; unused here (missing residues are excluded
+                downstream by the training loop's mask_for_loss).
         """
         device = S.device
 
         # Canonical -> XLNet token ids, then build permutation-LM inputs on CPU.
         input_ids = self.canonical_idx_to_xlnet_idx[S.cpu()]
-        valid_residue_mask = mask.bool().cpu()
-        input_ids, perm_mask, target_mapping = self.mask_tokens(input_ids, valid_residue_mask)
+        input_ids, perm_mask, target_mapping = self.mask_tokens(input_ids)
 
         output = self.model(
             input_ids=input_ids.to(device),

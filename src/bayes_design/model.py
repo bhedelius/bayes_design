@@ -629,17 +629,6 @@ def _backend_protein_mpnn(device, context=None, **kwargs):
     return ProteinMPNNWrapper(device=device, struct=context)
 
 
-def _backend_protein_mpnn_ctx(device, context=None, **kwargs):
-    # Context-bound ProteinMPNN (via LigandMPNN code) for multi-state objectives.
-    return MPNNWrapper(
-        device=device,
-        model_type="protein_mpnn",
-        checkpoint_path=_LIGAND_DIR / "proteinmpnn_v_48_020.pt",
-        context=context,
-        use_ligand=False,
-    )
-
-
 def _backend_ligand_mpnn(device, context=None, use_ligand=True, **kwargs):
     return MPNNWrapper(
         device=device,
@@ -669,7 +658,6 @@ def _backend_esm_if1(device, context=None, **kwargs):
 BACKENDS = {
     "xlnet": _backend_xlnet,
     "protein_mpnn": _backend_protein_mpnn,
-    "protein_mpnn_ctx": _backend_protein_mpnn_ctx,
     "ligand_mpnn": _backend_ligand_mpnn,
     "soluble_mpnn": _backend_soluble_mpnn,
     "esm_if1": _backend_esm_if1,
@@ -757,7 +745,7 @@ def objective_uses_context(name):
     """Whether the named objective/backend conditions on a parsed structure context."""
     if name in OBJECTIVES:
         return any(spec.get("context") for spec in OBJECTIVES[name])
-    return name in ("ligand_mpnn", "soluble_mpnn", "protein_mpnn_ctx")
+    return name in ("ligand_mpnn", "soluble_mpnn")
 
 
 model_dict = {
