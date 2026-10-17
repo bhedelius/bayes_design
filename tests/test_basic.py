@@ -122,6 +122,10 @@ def test_bayes_design_regression():
         seed=0,
         results_dir="./results",
         exclude_aa=[],
+        decoy_id=None,
+        ligand_file=None,
+        ligand_file_b=None,
+        ball_mask=False,
     )
     out = example_design(args)
     assert out["Designed sequence"][0].endswith("GYHVNITIS")

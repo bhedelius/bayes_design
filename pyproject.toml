@@ -9,6 +9,29 @@ description = "Bayesian protein sequence design via probability-model ratios (Ba
 readme = "README.md"
 requires-python = ">=3.9"
 license = { file = "LICENSE" }
+authors = [
+    { name = "Jacob A. Stern" },
+    { name = "Dennis Della Corte", email = "dennis.dellacorte@byu.edu" },
+]
+maintainers = [
+    { name = "Bryce E. Hedelius", email = "bhedelius@gmail.com" },
+]
+keywords = [
+    "protein design",
+    "inverse folding",
+    "ProteinMPNN",
+    "conformational specificity",
+    "deep learning",
+    "structural biology",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Topic :: Scientific/Engineering :: Bio-Informatics",
+]
 # Core: everything a design run needs (bayes_design, fold_specificity,
 # protein_mpnn / ligand_mpnn / soluble_mpnn). Heavier, task-specific deps live in
 # the extras below.
@@ -36,6 +59,11 @@ experiments = ["matplotlib", "pandas", "scipy", "tqdm", "tr-rosetta-pytorch"]
 # ESM-IF1 inverse-folding objective (esm_if1 / bayes_design_esm_if1 / ensemble).
 esm = ["fair-esm", "torch-geometric", "torch-scatter", "biotite"]
 
+[project.urls]
+Homepage = "https://github.com/dellacortelab/bayes_design"
+Repository = "https://github.com/dellacortelab/bayes_design"
+Paper = "https://doi.org/10.1038/s41598-023-42032-1"
+
 [project.scripts]
 bayes-design = "bayes_design.cli:main"
 bayes-design-experiment = "bayes_design.experiment_cli:main"
@@ -53,10 +81,21 @@ exclude = [
     "src/bayes_design/protein_mpnn/vanilla_model_weights/v_48_020.pt",
 ]
 
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
 [tool.ruff]
 line-length = 120
-# Exclude vendored model code and the adapted HuggingFace training script.
-extend-exclude = ["src/bayes_design/protein_mpnn", "src/bayes_design/ligand_mpnn", "src/bayes_design/train_xlnet.py"]
+# Exclude vendored model code, the adapted HuggingFace training script, and the
+# faithfully-ported research experiments (kept as-is for provenance, not maintained
+# to lint standards).
+extend-exclude = [
+    "src/bayes_design/protein_mpnn",
+    "src/bayes_design/ligand_mpnn",
+    "src/bayes_design/train_xlnet.py",
+    "src/bayes_design/experiments/scrmsd_experiment.py",
+    "src/bayes_design/experiments/make_chimerax_scripts.py",
+]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]
@@ -66,4 +105,10 @@ ignore = ["E501"]
 [tool.mypy]
 python_version = "3.9"
 ignore_missing_imports = true
-exclude = ["src/bayes_design/protein_mpnn/", "src/bayes_design/ligand_mpnn/", "src/bayes_design/train_xlnet.py"]
+exclude = [
+    "src/bayes_design/protein_mpnn/",
+    "src/bayes_design/ligand_mpnn/",
+    "src/bayes_design/train_xlnet.py",
+    "src/bayes_design/experiments/scrmsd_experiment.py",
+    "src/bayes_design/experiments/make_chimerax_scripts.py",
+]

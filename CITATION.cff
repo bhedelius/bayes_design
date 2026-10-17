@@ -1,0 +1,56 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite the paper below."
+title: BayesDesign
+abstract: >-
+  Protein sequence design that maximizes the Boltzmann probability
+  p(structure | sequence) via a ratio of probability models (ProteinMPNN /
+  ProtXLNet), targeting stability and conformational specificity.
+type: software
+authors:
+  - family-names: Stern
+    given-names: Jacob A.
+  - family-names: Free
+    given-names: Tyler J.
+  - family-names: Stern
+    given-names: Kimberlee L.
+  - family-names: Gardiner
+    given-names: Spencer
+  - family-names: Dalley
+    given-names: Nicholas A.
+  - family-names: Bundy
+    given-names: Bradley C.
+  - family-names: Price
+    given-names: Joshua L.
+  - family-names: Wingate
+    given-names: David
+  - family-names: Della Corte
+    given-names: Dennis
+    email: dennis.dellacorte@byu.edu
+repository-code: "https://github.com/dellacortelab/bayes_design"
+license: MIT
+preferred-citation:
+  type: article
+  title: "A probabilistic view of protein stability, conformational specificity, and design"
+  journal: "Scientific Reports"
+  year: 2023
+  volume: 13
+  doi: 10.1038/s41598-023-42032-1
+  authors:
+    - family-names: Stern
+      given-names: Jacob A.
+    - family-names: Free
+      given-names: Tyler J.
+    - family-names: Stern
+      given-names: Kimberlee L.
+    - family-names: Gardiner
+      given-names: Spencer
+    - family-names: Dalley
+      given-names: Nicholas A.
+    - family-names: Bundy
+      given-names: Bradley C.
+    - family-names: Price
+      given-names: Joshua L.
+    - family-names: Wingate
+      given-names: David
+    - family-names: Della Corte
+      given-names: Dennis
