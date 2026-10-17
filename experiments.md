@@ -196,6 +196,28 @@ Sequence Stats:
 
 ## Other experiments
 
+### Conformational-specificity design (fold_specificity)
+Design a sequence that prefers a target fold (`--protein_id`) over a competing
+fold (`--decoy_id`), maximizing `p(seq | target) / p(seq | decoy)`. The two
+backbones may be different (homologous) structures — the CLI aligns and crops
+them to a common length, so `--fixed_positions` are 1-indexed positions in that
+aligned sequence. This replaces the old `cs_design` model (`--protein_id_anti`).
+
+Design the ERK kinase (4GSB) fold against the alternate 2ERK conformation,
+keeping the termini fixed:
+```
+bayes-design --model_name fold_specificity --protein_id 4GSB --decoy_id 2ERK --decode_order n_to_c --decode_algorithm greedy --fixed_positions 1 168 187 358
+```
+Add `--ball_mask` to free only the residues within a ball around each designed
+position (instead of fixing exactly `--fixed_positions`):
+```
+bayes-design --model_name fold_specificity --protein_id 4GSB --decoy_id 2ERK --decode_order n_to_c --decode_algorithm greedy --fixed_positions 1 168 187 358 --ball_mask
+```
+The reverse design (2ERK preferred over 4GSB) just swaps the two ids:
+```
+bayes-design --model_name fold_specificity --protein_id 2ERK --decoy_id 4GSB --decode_order n_to_c --decode_algorithm greedy --fixed_positions 1 168 187 358
+```
+
 ### Visualizing distribution shift
 ```
 bayes-design-experiment viz_probs --protein_id 1PIN --decode_order n_to_c --fixed_positions 34 34 --sequence KLPPGWEKRMSRSSGRVYYFNHITNASQFERPSG --results_path ./results/probs_viz_KLPP
