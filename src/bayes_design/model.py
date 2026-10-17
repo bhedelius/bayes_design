@@ -251,9 +251,7 @@ class ProteinMPNNWrapper(ProbabilityModel):
         N = len(token_to_decode)
         L = len(seq[0])
         if self.bound_struct is not None:
-            # Clone: forward zeroes NaN rows in place, which would corrupt the
-            # cached backbone on the next call.
-            struct = self.bound_struct.clone()
+            struct = self.bound_struct
         assert L == struct.shape[0], "Sequence length must match the number of residues in the provided structure"
 
         # Convert amino acid character to index
@@ -272,7 +270,9 @@ class ProteinMPNNWrapper(ProbabilityModel):
                     )
                 )
 
-            struct = struct.expand(N, *struct.shape).to(self.device)
+            # contiguous() materializes the broadcast into real per-batch memory so
+            # the in-place NaN-zeroing below is safe (and never touches a bound struct).
+            struct = struct.expand(N, *struct.shape).to(self.device).contiguous()
             # Default values
             # `mask` masks positions that are missing structural information
             mask = torch.isfinite(torch.sum(struct, (2, 3))).to(torch.float32)
