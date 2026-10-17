@@ -11,7 +11,7 @@ from torch import nn
 from transformers import XLNetLMHeadModel, XLNetTokenizer
 
 from .protein_mpnn.protein_mpnn_utils import ProteinMPNN
-from .utils import AMINO_ACID_ORDER, sample_backbone_noise
+from .utils import AMINO_ACID_ORDER, load_backbone_library, sample_backbone_noise
 
 
 class ProbabilityModel(nn.Module, ABC):
@@ -517,6 +517,46 @@ class BackboneEnsembleWrapper(ProbabilityModel):
         return total / self.n_samples
 
 
+class BackboneLibraryWrapper(ProbabilityModel):
+    """Average an inner structure-conditioned model over a fixed library of backbones.
+
+    Estimates the partition-function denominator ``E_b[p(seq|b)]`` over a library of
+    genuinely diverse folds (decoys / AlphaFold models), not noise around one backbone --
+    the structural background Fix 1 needs for negative design. Each library backbone is
+    cropped to the query length (shorter entries are skipped); up to ``n_samples`` usable
+    backbones are averaged.
+    """
+
+    def __init__(self, inner, library, n_samples=None, device=None):
+        super().__init__()
+        self.inner = inner
+        self.library = library
+        self.n_samples = n_samples
+        self.device = device if device is not None else getattr(inner, "device", None)
+
+    def forward(
+        self, seq, struct, decode_order, token_to_decode, mask_type="bidirectional_autoregressive", temperature=1.0
+    ):
+        length = len(seq[0])
+        usable = [b for b in self.library if b.shape[0] >= length]
+        if self.n_samples is not None:
+            usable = usable[: self.n_samples]
+        if not usable:
+            raise ValueError(f"No library backbone has at least {length} residues to crop to the query length.")
+        total = None
+        for backbone in usable:
+            probs = self.inner(
+                seq=seq,
+                struct=backbone[:length],
+                decode_order=decode_order,
+                token_to_decode=token_to_decode,
+                mask_type=mask_type,
+                temperature=temperature,
+            )
+            total = probs if total is None else total + probs
+        return total / len(usable)
+
+
 class CombinedModel(ProbabilityModel):
     """Weighted log-linear combination of probability models, renormalized.
 
@@ -706,6 +746,16 @@ def _backend_backbone_ensemble(device, context=None, n_samples=8, sigma=0.1, **k
     return BackboneEnsembleWrapper(inner, base_struct=context, n_samples=n_samples, sigma=sigma, device=device)
 
 
+def _backend_backbone_library(device, context=None, library_dir=None, n_samples=None, max_structures=None, **kwargs):
+    # ProteinMPNN averaged over a diverse library of real backbones (decoys / AlphaFold
+    # models) loaded from `library_dir`, each cropped to the query length.
+    if library_dir is None:
+        raise ValueError("backbone_library backend requires library_dir (the decoy/AlphaFold PDB directory).")
+    inner = ProteinMPNNWrapper(device=device, struct=None)
+    library = load_backbone_library(library_dir, max_structures=max_structures)
+    return BackboneLibraryWrapper(inner, library, n_samples=n_samples, device=device)
+
+
 # Each backend builder takes (device, context, **kwargs) and returns a ProbabilityModel.
 BACKENDS = {
     "xlnet": _backend_xlnet,
@@ -714,6 +764,7 @@ BACKENDS = {
     "soluble_mpnn": _backend_soluble_mpnn,
     "esm_if1": _backend_esm_if1,
     "backbone_ensemble": _backend_backbone_ensemble,
+    "backbone_library": _backend_backbone_library,
 }
 
 # An objective is a list of term specs {backend, weight, context?, **backend_kwargs}.
@@ -743,6 +794,14 @@ OBJECTIVES = {
     "bayes_design_selfconsistent": [
         {"backend": "protein_mpnn", "weight": 1.0},
         {"backend": "backbone_ensemble", "weight": -1.0, "dose": True},
+    ],
+    # Fix 1 (diverse background): the same self-consistent denominator, but the partition
+    # function runs over a library of genuinely different folds (decoys / AlphaFold models)
+    # rather than noise around the native backbone -- the structural diversity a
+    # partition-function denominator needs. --decoy_library points at the PDB directory.
+    "bayes_design_decoy": [
+        {"backend": "protein_mpnn", "weight": 1.0},
+        {"backend": "backbone_library", "weight": -1.0, "dose": True},
     ],
     # p(struct,ligand|seq) ∝ p(seq|struct,ligand)  / p(seq)
     "bayes_design_ligand": [
@@ -786,10 +845,11 @@ OBJECTIVES = {
 }
 
 
-def _build_term(spec, device, contexts, contrast_weight=1.0, ensemble_n=None, ensemble_sigma=None):
+def _build_term(spec, device, contexts, contrast_weight=1.0, ensemble_n=None, ensemble_sigma=None, decoy_library=None):
     """Build one (model, weight) term. ``dose`` marks a tunable term, the only one
     ``contrast_weight`` scales. ``ensemble_n``/``ensemble_sigma`` override the
-    backbone-ensemble sample count and noise when set."""
+    backbone-ensemble sample count and noise; ``decoy_library`` supplies the
+    backbone-library directory, with ``ensemble_n`` capping the decoys averaged."""
     spec = dict(spec)
     backend = spec.pop("backend")
     weight = spec.pop("weight")
@@ -801,6 +861,11 @@ def _build_term(spec, device, contexts, contrast_weight=1.0, ensemble_n=None, en
             spec["n_samples"] = ensemble_n
         if ensemble_sigma is not None:
             spec["sigma"] = ensemble_sigma
+    if backend == "backbone_library":
+        if decoy_library is not None:
+            spec["library_dir"] = decoy_library
+        if ensemble_n is not None:
+            spec["n_samples"] = ensemble_n
     model = BACKENDS[backend](device=device, context=context, **spec)
     return model, weight
 
@@ -813,17 +878,20 @@ def build_objective(
     contrast_weight=1.0,
     ensemble_n=None,
     ensemble_sigma=None,
+    decoy_library=None,
 ):
     """Build a named objective.
 
     ``contrast_weight`` scales terms marked ``dose`` in OBJECTIVES, titrating how
     hard a denominator/contrast term is pushed while leaving anchors (e.g. the
     XLNet marginal) fixed. ``ensemble_n``/``ensemble_sigma`` set the backbone-ensemble
-    sample count and noise. Objectives without those terms are unaffected.
+    sample count and noise; ``decoy_library`` is the backbone-library directory.
+    Objectives without those terms are unaffected.
     """
     contexts = contexts or {}
     terms = [
-        _build_term(spec, device, contexts, contrast_weight, ensemble_n, ensemble_sigma) for spec in OBJECTIVES[name]
+        _build_term(spec, device, contexts, contrast_weight, ensemble_n, ensemble_sigma, decoy_library)
+        for spec in OBJECTIVES[name]
     ]
     return CombinedModel(terms, device=device, balance=bayes_balance_factor)
 
@@ -836,6 +904,7 @@ def build_model(
     contrast_weight=1.0,
     ensemble_n=None,
     ensemble_sigma=None,
+    decoy_library=None,
 ):
     """Single entry point used by the CLI: build any objective or backend by name."""
     if name in OBJECTIVES:
@@ -847,6 +916,7 @@ def build_model(
             contrast_weight=contrast_weight,
             ensemble_n=ensemble_n,
             ensemble_sigma=ensemble_sigma,
+            decoy_library=decoy_library,
         )
     if name in BACKENDS:
         return BACKENDS[name](device=device, context=(contexts or {}).get("main"))
@@ -874,6 +944,7 @@ model_dict = {
     "bayes_design_ensemble": CombinedModel,
     "bayes_design_basin": CombinedModel,
     "bayes_design_selfconsistent": CombinedModel,
+    "bayes_design_decoy": CombinedModel,
     "fold_specificity": CombinedModel,
     "ligand_selectivity": CombinedModel,
     "pssm": PSSM,

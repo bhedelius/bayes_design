@@ -81,6 +81,12 @@ def _build_parser() -> argparse.ArgumentParser:
         default=0.1,
         type=float,
     )
+    parser.add_argument(
+        "--decoy_library",
+        help="Directory of backbone PDBs (decoys / AlphaFold models) for the "
+        "backbone-library denominator (bayes_design_decoy); --n_ensemble caps the decoys averaged.",
+        default=None,
+    )
     parser.add_argument("--n_designs", help="The number of designs to generate", default=1, type=int)
     parser.add_argument("--seed", help="The random seed to use", default=0, type=int)
     parser.add_argument("--results_dir", help="The directory to save results to", default="./results")
@@ -145,6 +151,7 @@ def example_design(args: argparse.Namespace) -> dict:
         contrast_weight=args.contrast_weight,
         ensemble_n=args.n_ensemble,
         ensemble_sigma=args.ensemble_sigma,
+        decoy_library=args.decoy_library,
     )
 
     if args.ball_mask:

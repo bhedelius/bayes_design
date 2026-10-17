@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 
 import numpy as np
 import torch
@@ -43,6 +44,19 @@ def sample_backbone_noise(struct, n_samples, sigma, generator=None):
         return copies.clone()
     noise = torch.randn(copies.shape, generator=generator, device=struct.device, dtype=struct.dtype)
     return copies + noise * sigma
+
+
+def load_backbone_library(structures_dir, max_structures=None):
+    """Load every PDB in a directory as a list of (L, 4, 3) backbone tensors.
+
+    A genuinely diverse structural background (decoys / AlphaFold models) for a
+    self-consistent partition-function denominator, unlike noise around one backbone.
+    Entries keep their native length; callers crop to the query length.
+    """
+    paths = sorted(Path(structures_dir).glob("*.pdb"))
+    if max_structures is not None:
+        paths = paths[:max_structures]
+    return [get_protein(path.stem, structures_dir=structures_dir)[1] for path in paths]
 
 
 def get_ligand(pdb_code="6MRR", structures_dir="./data/structures", chain_list=("A",), ligand_file=None):

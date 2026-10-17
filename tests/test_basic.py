@@ -14,6 +14,7 @@ import torch
 from bayes_design.model import (
     OBJECTIVES,
     BackboneEnsembleWrapper,
+    BackboneLibraryWrapper,
     CombinedModel,
     ProbabilityModel,
     model_dict,
@@ -36,6 +37,7 @@ def test_objectives_registered():
         "bayes_design_ensemble",
         "bayes_design_basin",
         "bayes_design_selfconsistent",
+        "bayes_design_decoy",
     ):
         assert name in OBJECTIVES and name in model_dict
 
@@ -117,6 +119,39 @@ def test_backbone_ensemble_averages_over_noise():
     assert not torch.allclose(out, single)
 
 
+def test_backbone_library_averages_cropped_backbones():
+    """The library wrapper crops each backbone to the query length and averages,
+    skipping entries shorter than the query."""
+    inner = _StructSensitiveModel()
+    library = [
+        torch.full((5, 4, 3), 2.0),  # usable, cropped to 3; first coord 2.0
+        torch.full((8, 4, 3), 4.0),  # usable, cropped to 3; first coord 4.0
+        torch.full((2, 4, 3), 9.0),  # too short, skipped
+    ]
+    wrapper = BackboneLibraryWrapper(inner, library)
+    kw = dict(seq=["-" * 3], struct=None, decode_order=list(range(3)), token_to_decode=torch.tensor([0]))
+
+    out = wrapper(**kw)
+    expected = (inner(struct=torch.full((3, 4, 3), 2.0), **kw) + inner(struct=torch.full((3, 4, 3), 4.0), **kw)) / 2
+    assert torch.allclose(out, expected)
+
+
+def test_backbone_library_respects_n_samples():
+    """n_samples caps how many usable backbones are averaged."""
+    inner = _FixedModel(torch.softmax(torch.randn(1, 20), dim=-1))
+    library = [torch.zeros(4, 4, 3) for _ in range(5)]
+    wrapper = BackboneLibraryWrapper(inner, library, n_samples=2)
+    got = wrapper(seq=["-" * 4], struct=None, decode_order=list(range(4)), token_to_decode=torch.tensor([0]))
+    assert torch.allclose(got, inner._probs)
+
+
+def test_backbone_library_raises_when_all_too_short():
+    inner = _FixedModel(torch.softmax(torch.randn(1, 20), dim=-1))
+    wrapper = BackboneLibraryWrapper(inner, [torch.zeros(2, 4, 3)])
+    with pytest.raises(ValueError, match="at least 4 residues"):
+        wrapper(seq=["-" * 4], struct=None, decode_order=list(range(4)), token_to_decode=torch.tensor([0]))
+
+
 def test_kabsch_alignment_recovers_rigid_transform():
     """Kabsch alignment undoes an arbitrary rotation+translation."""
     from bayes_design.experiments.scrmsd import kabsch_alignment
@@ -188,6 +223,7 @@ def test_bayes_design_regression():
         contrast_weight=1.0,
         n_ensemble=8,
         ensemble_sigma=0.1,
+        decoy_library=None,
     )
     out = example_design(args)
     assert out["Designed sequence"][0].endswith("GYHVNITIS")

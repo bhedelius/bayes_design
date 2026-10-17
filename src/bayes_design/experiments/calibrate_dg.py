@@ -115,6 +115,11 @@ def score_variants(args):
     num_model = BACKENDS["protein_mpnn"](device=device)
     ens_model = BACKENDS["backbone_ensemble"](device=device, n_samples=args.n_ensemble, sigma=args.ensemble_sigma)
     xlnet_model = BACKENDS["xlnet"](device=device) if "xlnet" in args.denominators else None
+    lib_model = (
+        BACKENDS["backbone_library"](device=device, library_dir=args.decoy_library, n_samples=args.n_decoys)
+        if "backbone_library" in args.denominators
+        else None
+    )
 
     parse_row = SCHEMAS[args.schema]
     rows, skips = [], {"no_structure": 0, "no_wt": 0, "offset": 0, "length": 0, "nonstandard": 0, "no_ddg": 0}
@@ -161,6 +166,8 @@ def score_variants(args):
             }
             if xlnet_model is not None:
                 record["f_xlnet"] = evaluate_sequence_log_prob(dom, xlnet_model, mask_type=args.mask_type)
+            if lib_model is not None:
+                record["f_lib"] = evaluate_sequence_log_prob(dom, lib_model, structure=struct, mask_type=args.mask_type)
             rows.append(record)
 
     return rows, skips
@@ -169,7 +176,7 @@ def score_variants(args):
 def _difference_within_domains(rows):
     """Subtract each domain's wild-type features, dropping domains without a wild type
     and the (trivially zero) wild-type rows themselves."""
-    feature_keys = [k for k in ("f_num", "f_ens", "f_xlnet") if k in rows[0]]
+    feature_keys = [k for k in ("f_num", "f_ens", "f_xlnet", "f_lib") if k in rows[0]]
     wt_by_domain = {r["domain"]: r for r in rows if r["is_wt"]}
     out = []
     for r in rows:
@@ -202,7 +209,7 @@ def calibrate(diffed, feature_keys, denominators):
     target = np.array([d["ddG"] for d in diffed])
     f_num = np.array([d["f_num"] for d in diffed])
     fits = {"numerator_only": _fit([f_num], target)}
-    den_key = {"backbone_ensemble": "f_ens", "xlnet": "f_xlnet"}
+    den_key = {"backbone_ensemble": "f_ens", "xlnet": "f_xlnet", "backbone_library": "f_lib"}
     for den in denominators:
         key = den_key[den]
         if key not in feature_keys:
@@ -227,7 +234,7 @@ def _read_features(path):
         rows = list(csv.DictReader(handle))
     for r in rows:
         r["is_wt"] = int(r["is_wt"])
-        for k in ("ddG", "f_num", "f_ens", "f_xlnet"):
+        for k in ("ddG", "f_num", "f_ens", "f_xlnet", "f_lib"):
             if k in r:
                 r[k] = float(r[k])
     return rows
@@ -247,6 +254,10 @@ def _build_parser():
     )
     parser.add_argument("--n-ensemble", type=int, default=8)
     parser.add_argument("--ensemble-sigma", type=float, default=0.1)
+    parser.add_argument(
+        "--decoy-library", default=None, help="Directory of backbone PDBs for the backbone_library denominator."
+    )
+    parser.add_argument("--n-decoys", type=int, default=None, help="Cap decoys averaged per variant (default: all).")
     parser.add_argument("--mask-type", default="bidirectional_mlm")
     parser.add_argument("--device", type=int, default=0)
     parser.add_argument("--features-out", default=None, help="Cache scored features here (CSV).")
@@ -283,6 +294,8 @@ def main():
         "mask_type": args.mask_type,
         "n_ensemble": args.n_ensemble,
         "ensemble_sigma": args.ensemble_sigma,
+        "decoy_library": args.decoy_library,
+        "n_decoys": args.n_decoys,
         "n_variants": len(diffed),
         "n_domains": len({r["domain"] for r in rows}),
         "skips": skips,
