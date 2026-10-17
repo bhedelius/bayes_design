@@ -122,7 +122,11 @@ def score_variants(args):
     """Score every usable variant and return feature rows plus skip counts."""
     device = torch.device(f"cuda:{args.device}" if torch.cuda.is_available() else "cpu")
     num_model = BACKENDS["protein_mpnn"](device=device)
-    ens_model = BACKENDS["backbone_ensemble"](device=device, n_samples=args.n_ensemble, sigma=args.ensemble_sigma)
+    ens_model = (
+        BACKENDS["backbone_ensemble"](device=device, n_samples=args.n_ensemble, sigma=args.ensemble_sigma)
+        if "backbone_ensemble" in args.denominators
+        else None
+    )
     xlnet_model = BACKENDS["xlnet"](device=device) if "xlnet" in args.denominators else None
 
     # The library denominator reuses the numerator's ProteinMPNN as its inner model.
@@ -187,8 +191,9 @@ def score_variants(args):
                 "is_wt": int(is_wt),
                 "ddG": measured,
                 "f_num": evaluate_sequence_log_prob(dom, num_model, structure=struct, mask_type=args.mask_type),
-                "f_ens": evaluate_sequence_log_prob(dom, ens_model, structure=struct, mask_type=args.mask_type),
             }
+            if ens_model is not None:
+                record["f_ens"] = evaluate_sequence_log_prob(dom, ens_model, structure=struct, mask_type=args.mask_type)
             if xlnet_model is not None:
                 record["f_xlnet"] = evaluate_sequence_log_prob(dom, xlnet_model, mask_type=args.mask_type)
             if lib_model is not None:
