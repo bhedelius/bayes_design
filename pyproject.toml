@@ -13,9 +13,6 @@ authors = [
     { name = "Jacob A. Stern" },
     { name = "Dennis Della Corte", email = "dennis.dellacorte@byu.edu" },
 ]
-maintainers = [
-    { name = "Bryce E. Hedelius", email = "bhedelius@gmail.com" },
-]
 keywords = [
     "protein design",
     "inverse folding",
