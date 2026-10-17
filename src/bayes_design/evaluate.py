@@ -58,6 +58,40 @@ def evaluate_log_prob(seq, prob_model, decode_order, fixed_position_mask, mask_t
     return log_prob
 
 
+def evaluate_sequence_log_prob(
+    seq, prob_model, structure=None, decode_order=None, mask_type="bidirectional_mlm", exclude_aa=None
+):
+    """Teacher-forced summed log-likelihood of a full sequence under one model.
+
+    Scores every position (no fixed positions) against the given sequence. Call it
+    with a single backend (not a CombinedModel) to get an un-normalized per-term
+    log-likelihood -- e.g. log p(seq|struct) from ProteinMPNN or log p(seq) from a
+    marginal -- for calibration against measured stabilities.
+    """
+    if decode_order is None:
+        decode_order = list(range(len(seq)))
+    fixed_position_mask = np.zeros(len(seq))
+    return evaluate_log_prob(
+        seq=seq,
+        prob_model=prob_model,
+        decode_order=decode_order,
+        fixed_position_mask=fixed_position_mask,
+        mask_type=mask_type,
+        structure=structure,
+        exclude_aa=exclude_aa,
+    )
+
+
+def predict_delta_g(log_p_struct_given_seq, log_p_seq, coef):
+    """Apply a fitted linear calibration ``dG = a*log p(seq|struct) + b*log p(seq) + c``.
+
+    ``coef`` is ``(a, b, c)`` as fit by the calibration script. In the review's terms
+    the denominator weight is ``lambda = -b/a`` and the inverse temperature ``beta = 1/a``.
+    """
+    a, b, c = coef
+    return a * log_p_struct_given_seq + b * log_p_seq + c
+
+
 def evaluate_rmsd(sequence, seq_to_struct_model, targ_struct):
     """
     Evaluate RMSD between the "true structure" (computationally predicted from

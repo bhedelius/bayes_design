@@ -218,6 +218,33 @@ The reverse design (2ERK preferred over 4GSB) just swaps the two ids:
 bayes-design --model_name fold_specificity --protein_id 2ERK --decoy_id 4GSB --decode_order n_to_c --decode_algorithm greedy --fixed_positions 1 168 187 358
 ```
 
+### Backbone-ensemble objectives (theory-review Fix 1 & Fix 3)
+`bayes_design_basin` averages the likelihood over a noise-perturbed ensemble of the
+native backbone (conformational entropy). `bayes_design_selfconsistent` replaces the
+XLNet marginal with a Monte Carlo partition function from the same ProteinMPNN over
+that ensemble, with `--contrast_weight` tuning the denominator (the review's lambda).
+`--n_ensemble` and `--ensemble_sigma` (angstroms) set the ensemble.
+```
+bayes-design --model_name bayes_design_basin --protein_id 6MRR --decode_algorithm greedy --fixed_positions 1 60 --n_ensemble 8 --ensemble_sigma 0.1
+```
+```
+bayes-design --model_name bayes_design_selfconsistent --protein_id 6MRR --decode_algorithm greedy --fixed_positions 1 60 --n_ensemble 8 --ensemble_sigma 0.1 --contrast_weight 1.0
+```
+
+### Calibrating Delta G against mega-scale stability data (Fix 2)
+Fit the objective to measured folding stability (Tsuboyama et al. 2023), recovering the
+denominator weight `lambda` and inverse temperature `beta` and comparing the XLNet
+marginal against the self-consistent backbone-ensemble denominator. Needs the processed
+dataset CSV and per-domain backbones (its AlphaFold PDBs); run on a GPU host. Start with
+a small `--max-domains` to shake out structure/length coverage, then scale and reuse the
+cached features:
+```
+python -m bayes_design.experiments.calibrate_dg --csv Tsuboyama2023_Dataset1_20230416.csv --structures-dir af_pdbs --schema dataset1 --max-domains 20 --features-out feat.csv --out calib.json
+```
+```
+python -m bayes_design.experiments.calibrate_dg --csv Tsuboyama2023_Dataset1_20230416.csv --structures-dir af_pdbs --features-out feat.csv --reuse-features --out calib.json
+```
+
 ### Visualizing distribution shift
 ```
 bayes-design-experiment viz_probs --protein_id 1PIN --decode_order n_to_c --fixed_positions 34 34 --sequence KLPPGWEKRMSRSSGRVYYFNHITNASQFERPSG --results_path ./results/probs_viz_KLPP
