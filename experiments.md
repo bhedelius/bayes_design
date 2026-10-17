@@ -230,6 +230,14 @@ bayes-design --model_name bayes_design_basin --protein_id 6MRR --decode_algorith
 ```
 bayes-design --model_name bayes_design_selfconsistent --protein_id 6MRR --decode_algorithm greedy --fixed_positions 1 60 --n_ensemble 8 --ensemble_sigma 0.1 --contrast_weight 1.0
 ```
+`bayes_design_decoy` is the self-consistent denominator with a genuinely diverse
+background: the partition function runs over a library of different folds
+(decoys / AlphaFold models) cropped to the design length, rather than noise around the
+native backbone. `--decoy_library` points at the PDB directory and `--n_ensemble` caps
+the decoys averaged. The library should exclude the target fold to avoid self-contamination.
+```
+bayes-design --model_name bayes_design_decoy --protein_id 6MRR --decode_algorithm greedy --fixed_positions 1 60 --decoy_library ./data/decoys --n_ensemble 16 --contrast_weight 1.0
+```
 
 ### Calibrating Delta G against mega-scale stability data (Fix 2)
 Fit the objective to measured folding stability (Tsuboyama et al. 2023), recovering the
@@ -243,6 +251,13 @@ python -m bayes_design.experiments.calibrate_dg --csv Tsuboyama2023_Dataset1_202
 ```
 ```
 python -m bayes_design.experiments.calibrate_dg --csv Tsuboyama2023_Dataset1_20230416.csv --structures-dir af_pdbs --features-out feat.csv --reuse-features --out calib.json
+```
+Add `backbone_library` to `--denominators` to test the diverse-background denominator
+(Fix 1) against the same data. `--decoy-library` is a directory of background backbones
+(a pool distinct from the target domains, to avoid self-contamination) and `--n-decoys`
+caps how many are averaged per variant:
+```
+python -m bayes_design.experiments.calibrate_dg --csv Tsuboyama2023_Dataset1_20230416.csv --structures-dir af_pdbs --denominators xlnet backbone_library --decoy-library decoy_pool --n-decoys 16 --max-domains 20 --features-out feat.csv --out calib.json
 ```
 
 #### Result: XLNet beats the self-consistent backbone-ensemble denominator
