@@ -245,6 +245,33 @@ python -m bayes_design.experiments.calibrate_dg --csv Tsuboyama2023_Dataset1_202
 python -m bayes_design.experiments.calibrate_dg --csv Tsuboyama2023_Dataset1_20230416.csv --structures-dir af_pdbs --features-out feat.csv --reuse-features --out calib.json
 ```
 
+#### Result: XLNet beats the self-consistent backbone-ensemble denominator
+Calibrated on 700 variants across 14 domains of Tsuboyama Dataset1, scoring each
+variant on its wild-type AlphaFold backbone and differencing features within each
+domain (target `ddG`). Correlations of predicted vs. measured `ddG`:
+
+| Denominator | sigma | Pearson | Spearman | lambda | beta |
+| --- | --- | --- | --- | --- | --- |
+| none (numerator only) | - | 0.517 | 0.553 | - | - |
+| backbone ensemble | 0.1 | 0.517 | 0.553 | 0.07 | 3.6 |
+| backbone ensemble | 0.3 | 0.533 | 0.563 | -0.82 | 6.8 |
+| backbone ensemble | 0.6 | 0.537 | 0.543 | -0.31 | 4.7 |
+| backbone ensemble | 1.0 | 0.517 | 0.553 | -0.01 | 3.9 |
+| XLNet p(seq) | - | 0.566 | 0.586 | -0.19 | 4.2 |
+
+The XLNet marginal is the only denominator that improves ranking over the bare
+numerator. The noise-perturbed self-consistent denominator does not: at small sigma
+the differenced ensemble feature is collinear with the numerator, and at large sigma
+the perturbed backbone stops discriminating mutations, so the feature collapses toward
+zero. The erratic lambda signs across sigma confirm it is fitting noise, not negative
+design. A self-consistent partition-function denominator needs a genuinely diverse
+structural background (decoys / alternate folds), not Gaussian backbone noise.
+
+Provenance: commit `d375dac`; Tsuboyama 2023 Dataset1
+(`Processed_K50_dG_datasets/Tsuboyama2023_Dataset1_20230416.csv`, Zenodo 7844779) with
+per-domain AlphaFold backbones; `bidirectional_mlm` scoring; run on ribo (Quadro RTX
+5000); sigma sweep over a fixed 20-domain / 50-variant subset.
+
 ### Visualizing distribution shift
 ```
 bayes-design-experiment viz_probs --protein_id 1PIN --decode_order n_to_c --fixed_positions 34 34 --sequence KLPPGWEKRMSRSSGRVYYFNHITNASQFERPSG --results_path ./results/probs_viz_KLPP
