@@ -7,7 +7,7 @@ import argparse
 
 from bayes_design.decode import decode_order_dict
 from bayes_design.evaluate import metric_dict
-from bayes_design.experiments import (
+from bayes_design.experiments.analysis import (
     compare_seq_metric,
     compare_struct_correlation,
     make_hist,
