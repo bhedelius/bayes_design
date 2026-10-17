@@ -32,6 +32,19 @@ def get_protein(pdb_code="6MRR", structures_dir="./data/structures"):
     return protein["seq"], struct
 
 
+def sample_backbone_noise(struct, n_samples, sigma, generator=None):
+    """Return ``n_samples`` perturbed copies of an (L, 4, 3) backbone.
+
+    Adds i.i.d. Gaussian noise (std ``sigma`` angstroms) to every atom; ``sigma=0``
+    returns exact copies. NaN (missing) coordinates stay NaN. Shape (n_samples, L, 4, 3).
+    """
+    copies = struct.unsqueeze(0).expand(n_samples, *struct.shape)
+    if sigma == 0:
+        return copies.clone()
+    noise = torch.randn(copies.shape, generator=generator, device=struct.device, dtype=struct.dtype)
+    return copies + noise * sigma
+
+
 def get_ligand(pdb_code="6MRR", structures_dir="./data/structures", chain_list=("A",), ligand_file=None):
     """Parse a protein and its bound ligand into a LigandMPNN input dict.
 

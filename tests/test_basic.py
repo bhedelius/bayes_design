@@ -11,8 +11,14 @@ import numpy as np
 import pytest
 import torch
 
-from bayes_design.model import OBJECTIVES, CombinedModel, ProbabilityModel, model_dict
-from bayes_design.utils import get_fixed_position_mask
+from bayes_design.model import (
+    OBJECTIVES,
+    BackboneEnsembleWrapper,
+    CombinedModel,
+    ProbabilityModel,
+    model_dict,
+)
+from bayes_design.utils import get_fixed_position_mask, sample_backbone_noise
 
 
 def test_model_dict_has_core_models():
@@ -28,6 +34,8 @@ def test_objectives_registered():
         "bayes_design_soluble",
         "bayes_design_esm_if1",
         "bayes_design_ensemble",
+        "bayes_design_basin",
+        "bayes_design_selfconsistent",
     ):
         assert name in OBJECTIVES and name in model_dict
 
@@ -56,6 +64,57 @@ def test_combined_model_two_term_matches_ratio():
     ratio = (p_num + b) / (p_den + b)
     expected = ratio / ratio.sum(dim=-1, keepdim=True)
     assert torch.allclose(got, expected, atol=1e-5)
+
+
+class _StructSensitiveModel(ProbabilityModel):
+    """Distribution whose first logit is the backbone's first coordinate, so
+    different backbones give different outputs (unlike `_FixedModel`)."""
+
+    def forward(self, seq, struct, decode_order, token_to_decode, mask_type=None, temperature=1.0):
+        logits = torch.zeros(len(token_to_decode), 20)
+        logits[:, 0] = struct.reshape(-1)[0]
+        return torch.softmax(logits, dim=-1)
+
+
+def test_sample_backbone_noise():
+    struct = torch.randn(7, 4, 3)
+    expanded = struct.unsqueeze(0).expand(5, 7, 4, 3)
+
+    exact = sample_backbone_noise(struct, 5, 0.0)
+    assert exact.shape == (5, 7, 4, 3)
+    assert torch.allclose(exact, expanded)
+
+    noisy = sample_backbone_noise(struct, 5, 0.3)
+    assert noisy.shape == (5, 7, 4, 3)
+    assert not torch.allclose(noisy, expanded)
+
+    # Missing (NaN) coordinates are preserved.
+    struct_nan = struct.clone()
+    struct_nan[0, 0, 0] = float("nan")
+    assert torch.isnan(sample_backbone_noise(struct_nan, 3, 0.3)[:, 0, 0, 0]).all()
+
+
+def test_backbone_ensemble_reduces_to_inner():
+    """n_samples=1, sigma=0 is exactly the inner model on the base backbone."""
+    inner = _FixedModel(torch.softmax(torch.randn(1, 20), dim=-1))
+    wrapper = BackboneEnsembleWrapper(inner, base_struct=torch.zeros(5, 4, 3), n_samples=1, sigma=0.0)
+    got = wrapper(seq=["-" * 5], struct=None, decode_order=list(range(5)), token_to_decode=torch.tensor([0]))
+    assert torch.allclose(got, inner._probs)
+
+
+def test_backbone_ensemble_averages_over_noise():
+    """The ensemble returns a valid distribution and differs from a single pass."""
+    torch.manual_seed(0)
+    inner = _StructSensitiveModel()
+    base = torch.ones(5, 4, 3)
+    wrapper = BackboneEnsembleWrapper(inner, base_struct=base, n_samples=64, sigma=1.0)
+    kw = dict(seq=["-" * 5], struct=None, decode_order=list(range(5)), token_to_decode=torch.tensor([0]))
+
+    out = wrapper(**kw)
+    assert out.shape == (1, 20)
+    assert torch.allclose(out.sum(dim=-1), torch.ones(1), atol=1e-5)
+    single = inner(seq=["-" * 5], struct=base, decode_order=list(range(5)), token_to_decode=torch.tensor([0]))
+    assert not torch.allclose(out, single)
 
 
 def test_kabsch_alignment_recovers_rigid_transform():
@@ -126,6 +185,9 @@ def test_bayes_design_regression():
         ligand_file=None,
         ligand_file_b=None,
         ball_mask=False,
+        contrast_weight=1.0,
+        n_ensemble=8,
+        ensemble_sigma=0.1,
     )
     out = example_design(args)
     assert out["Designed sequence"][0].endswith("GYHVNITIS")

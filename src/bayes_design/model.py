@@ -11,7 +11,7 @@ from torch import nn
 from transformers import XLNetLMHeadModel, XLNetTokenizer
 
 from .protein_mpnn.protein_mpnn_utils import ProteinMPNN
-from .utils import AMINO_ACID_ORDER
+from .utils import AMINO_ACID_ORDER, sample_backbone_noise
 
 
 class ProbabilityModel(nn.Module, ABC):
@@ -478,6 +478,45 @@ class ESMIF1Wrapper(ProbabilityModel):
         return probs
 
 
+class BackboneEnsembleWrapper(ProbabilityModel):
+    """Average an inner structure-conditioned model over an ensemble of backbones.
+
+    Returns the arithmetic mean ``E_b[p(seq|b)]`` of the inner model's per-position
+    distributions over ``n_samples`` noise-perturbed copies of a backbone -- the
+    Monte Carlo estimate the theory review calls for, distinct from the geometric
+    mean a multi-term `CombinedModel` produces. With ``n_samples=1`` and ``sigma=0``
+    it reduces exactly to the inner model. Serves as a native-basin numerator
+    (conformational entropy) or a partition-function denominator (negative design);
+    ``base_struct=None`` perturbs the call-time backbone instead of a bound one.
+    """
+
+    def __init__(self, inner, base_struct=None, n_samples=8, sigma=0.1, device=None):
+        super().__init__()
+        self.inner = inner
+        self.base_struct = base_struct
+        self.n_samples = n_samples
+        self.sigma = sigma
+        self.device = device if device is not None else getattr(inner, "device", None)
+
+    def forward(
+        self, seq, struct, decode_order, token_to_decode, mask_type="bidirectional_autoregressive", temperature=1.0
+    ):
+        base = self.base_struct if self.base_struct is not None else struct
+        backbones = sample_backbone_noise(base, self.n_samples, self.sigma)
+        total = None
+        for backbone in backbones:
+            probs = self.inner(
+                seq=seq,
+                struct=backbone,
+                decode_order=decode_order,
+                token_to_decode=token_to_decode,
+                mask_type=mask_type,
+                temperature=temperature,
+            )
+            total = probs if total is None else total + probs
+        return total / self.n_samples
+
+
 class CombinedModel(ProbabilityModel):
     """Weighted log-linear combination of probability models, renormalized.
 
@@ -660,6 +699,13 @@ def _backend_esm_if1(device, context=None, **kwargs):
     return ESMIF1Wrapper(device=device)
 
 
+def _backend_backbone_ensemble(device, context=None, n_samples=8, sigma=0.1, **kwargs):
+    # ProteinMPNN averaged over noise-perturbed backbones. `context`, when given, is
+    # the raw (L x 4 x 3) backbone to perturb; otherwise the call-time struct is used.
+    inner = ProteinMPNNWrapper(device=device, struct=None)
+    return BackboneEnsembleWrapper(inner, base_struct=context, n_samples=n_samples, sigma=sigma, device=device)
+
+
 # Each backend builder takes (device, context, **kwargs) and returns a ProbabilityModel.
 BACKENDS = {
     "xlnet": _backend_xlnet,
@@ -667,6 +713,7 @@ BACKENDS = {
     "ligand_mpnn": _backend_ligand_mpnn,
     "soluble_mpnn": _backend_soluble_mpnn,
     "esm_if1": _backend_esm_if1,
+    "backbone_ensemble": _backend_backbone_ensemble,
 }
 
 # An objective is a list of term specs {backend, weight, context?, **backend_kwargs}.
@@ -680,6 +727,22 @@ OBJECTIVES = {
     "bayes_design": [
         {"backend": "protein_mpnn", "weight": 1.0},
         {"backend": "xlnet", "weight": -1.0},
+    ],
+    # Fix 3 (conformational entropy): average the likelihood over a noise-perturbed
+    # ensemble of the native backbone, E_b[p(seq|b)], instead of one point estimate.
+    "bayes_design_basin": [
+        {"backend": "backbone_ensemble", "weight": 1.0},
+        {"backend": "xlnet", "weight": -1.0},
+    ],
+    # Fix 1 (self-consistent denominator): replace the XLNet marginal with a Monte
+    # Carlo structure partition function estimated from the SAME inverse-folding model
+    # over a background backbone set, so the ratio estimates p(struct|seq) directly and
+    # bakes in negative design. The denominator is dosed -- --contrast_weight tunes it
+    # (the review's lambda). Noise-perturbed native backbones are the Phase A
+    # background; a decoy/AlphaFold library is a later swap behind the same backend.
+    "bayes_design_selfconsistent": [
+        {"backend": "protein_mpnn", "weight": 1.0},
+        {"backend": "backbone_ensemble", "weight": -1.0, "dose": True},
     ],
     # p(struct,ligand|seq) ∝ p(seq|struct,ligand)  / p(seq)
     "bayes_design_ligand": [
@@ -723,32 +786,57 @@ OBJECTIVES = {
 }
 
 
-def _build_term(spec, device, contexts, contrast_weight=1.0):
+def _build_term(spec, device, contexts, contrast_weight=1.0, ensemble_n=None, ensemble_sigma=None):
     """Build one (model, weight) term. ``dose`` marks a tunable term, the only one
-    ``contrast_weight`` scales (e.g. the denominator of a specificity objective)."""
+    ``contrast_weight`` scales. ``ensemble_n``/``ensemble_sigma`` override the
+    backbone-ensemble sample count and noise when set."""
     spec = dict(spec)
     backend = spec.pop("backend")
     weight = spec.pop("weight")
     if spec.pop("dose", False):
         weight *= contrast_weight
     context = contexts.get(spec.pop("context", None))
+    if backend == "backbone_ensemble":
+        if ensemble_n is not None:
+            spec["n_samples"] = ensemble_n
+        if ensemble_sigma is not None:
+            spec["sigma"] = ensemble_sigma
     model = BACKENDS[backend](device=device, context=context, **spec)
     return model, weight
 
 
-def build_objective(name, device=None, contexts=None, bayes_balance_factor=0.002, contrast_weight=1.0):
+def build_objective(
+    name,
+    device=None,
+    contexts=None,
+    bayes_balance_factor=0.002,
+    contrast_weight=1.0,
+    ensemble_n=None,
+    ensemble_sigma=None,
+):
     """Build a named objective.
 
     ``contrast_weight`` scales terms marked ``dose`` in OBJECTIVES, titrating how
     hard a denominator/contrast term is pushed while leaving anchors (e.g. the
-    XLNet marginal) fixed. Objectives with no dosed term are unaffected.
+    XLNet marginal) fixed. ``ensemble_n``/``ensemble_sigma`` set the backbone-ensemble
+    sample count and noise. Objectives without those terms are unaffected.
     """
     contexts = contexts or {}
-    terms = [_build_term(spec, device, contexts, contrast_weight) for spec in OBJECTIVES[name]]
+    terms = [
+        _build_term(spec, device, contexts, contrast_weight, ensemble_n, ensemble_sigma) for spec in OBJECTIVES[name]
+    ]
     return CombinedModel(terms, device=device, balance=bayes_balance_factor)
 
 
-def build_model(name, device=None, contexts=None, bayes_balance_factor=0.002, contrast_weight=1.0):
+def build_model(
+    name,
+    device=None,
+    contexts=None,
+    bayes_balance_factor=0.002,
+    contrast_weight=1.0,
+    ensemble_n=None,
+    ensemble_sigma=None,
+):
     """Single entry point used by the CLI: build any objective or backend by name."""
     if name in OBJECTIVES:
         return build_objective(
@@ -757,6 +845,8 @@ def build_model(name, device=None, contexts=None, bayes_balance_factor=0.002, co
             contexts=contexts,
             bayes_balance_factor=bayes_balance_factor,
             contrast_weight=contrast_weight,
+            ensemble_n=ensemble_n,
+            ensemble_sigma=ensemble_sigma,
         )
     if name in BACKENDS:
         return BACKENDS[name](device=device, context=(contexts or {}).get("main"))
@@ -782,6 +872,8 @@ model_dict = {
     "bayes_design_soluble": CombinedModel,
     "bayes_design_esm_if1": CombinedModel,
     "bayes_design_ensemble": CombinedModel,
+    "bayes_design_basin": CombinedModel,
+    "bayes_design_selfconsistent": CombinedModel,
     "fold_specificity": CombinedModel,
     "ligand_selectivity": CombinedModel,
     "pssm": PSSM,

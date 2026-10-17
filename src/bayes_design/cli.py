@@ -68,6 +68,19 @@ def _build_parser() -> argparse.ArgumentParser:
         default=1.0,
         type=float,
     )
+    parser.add_argument(
+        "--n_ensemble",
+        help="Backbone-ensemble sample count for ensemble objectives "
+        "(bayes_design_basin, bayes_design_selfconsistent).",
+        default=8,
+        type=int,
+    )
+    parser.add_argument(
+        "--ensemble_sigma",
+        help="Backbone-ensemble Gaussian noise std in angstroms.",
+        default=0.1,
+        type=float,
+    )
     parser.add_argument("--n_designs", help="The number of designs to generate", default=1, type=int)
     parser.add_argument("--seed", help="The random seed to use", default=0, type=int)
     parser.add_argument("--results_dir", help="The directory to save results to", default="./results")
@@ -130,6 +143,8 @@ def example_design(args: argparse.Namespace) -> dict:
         contexts=contexts,
         bayes_balance_factor=args.bayes_balance_factor,
         contrast_weight=args.contrast_weight,
+        ensemble_n=args.n_ensemble,
+        ensemble_sigma=args.ensemble_sigma,
     )
 
     if args.ball_mask:
