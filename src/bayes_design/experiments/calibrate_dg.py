@@ -14,6 +14,7 @@ import argparse
 import csv
 import json
 import math
+import random
 import subprocess
 import sys
 from datetime import datetime, timezone
@@ -24,8 +25,8 @@ import torch
 from Bio.Seq import Seq
 
 from ..evaluate import evaluate_sequence_log_prob
-from ..model import BACKENDS
-from ..utils import AMINO_ACID_ORDER, get_protein
+from ..model import BACKENDS, BackboneLibraryWrapper
+from ..utils import AMINO_ACID_ORDER, get_protein, load_backbone_library
 
 STANDARD_AA = set(AMINO_ACID_ORDER[:-1])  # 20 canonical, excluding 'X'
 _REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -109,20 +110,36 @@ def _git_commit():
         return None
 
 
+def _load_pool(structures_dir, max_structures=None):
+    """Load every PDB in a directory keyed by its domain id, for leave-one-out decoys."""
+    paths = sorted(Path(structures_dir).glob("*.pdb"))
+    if max_structures is not None:
+        paths = paths[:max_structures]
+    return {path.stem: get_protein(path.stem, structures_dir=structures_dir)[1] for path in paths}
+
+
 def score_variants(args):
     """Score every usable variant and return feature rows plus skip counts."""
     device = torch.device(f"cuda:{args.device}" if torch.cuda.is_available() else "cpu")
     num_model = BACKENDS["protein_mpnn"](device=device)
     ens_model = BACKENDS["backbone_ensemble"](device=device, n_samples=args.n_ensemble, sigma=args.ensemble_sigma)
     xlnet_model = BACKENDS["xlnet"](device=device) if "xlnet" in args.denominators else None
-    lib_model = (
-        BACKENDS["backbone_library"](device=device, library_dir=args.decoy_library, n_samples=args.n_decoys)
-        if "backbone_library" in args.denominators
-        else None
-    )
+
+    # The library denominator reuses the numerator's ProteinMPNN as its inner model.
+    # Leave-one-out draws decoys from --structures-dir minus the target; otherwise the
+    # library is a fixed external pool from --decoy-library.
+    lib_model, pool, rng = None, None, random.Random(0)
+    if "backbone_library" in args.denominators:
+        if args.leave_one_out:
+            pool = _load_pool(args.structures_dir, args.max_pool)
+            lib_model = BackboneLibraryWrapper(num_model, library=[], device=device)
+        else:
+            library = load_backbone_library(args.decoy_library)
+            lib_model = BackboneLibraryWrapper(num_model, library=library, n_samples=args.n_decoys, device=device)
 
     parse_row = SCHEMAS[args.schema]
-    rows, skips = [], {"no_structure": 0, "no_wt": 0, "offset": 0, "length": 0, "nonstandard": 0, "no_ddg": 0}
+    skip_keys = ("no_structure", "no_wt", "offset", "length", "nonstandard", "no_ddg", "no_decoys")
+    rows, skips = [], dict.fromkeys(skip_keys, 0)
 
     for domain_id, group in _grouped_rows(args.csv, parse_row, args.max_domains):
         pdb_path = Path(args.structures_dir) / f"{domain_id}.pdb"
@@ -141,6 +158,14 @@ def score_variants(args):
             continue
         start, end = offsets
         wt_dg = wt[4]
+
+        if lib_model is not None and args.leave_one_out:
+            candidates = [s for i, s in pool.items() if i != domain_id and s.shape[0] >= len(pdb_seq)]
+            if not candidates:
+                skips["no_decoys"] += 1
+                continue
+            rng.shuffle(candidates)
+            lib_model.library = candidates[: args.n_decoys]
 
         variants = group if args.max_variants is None else group[: args.max_variants + 1]
         for _domain, name, aa, is_wt, dg, ddg in variants:
@@ -258,6 +283,12 @@ def _build_parser():
         "--decoy-library", default=None, help="Directory of backbone PDBs for the backbone_library denominator."
     )
     parser.add_argument("--n-decoys", type=int, default=None, help="Cap decoys averaged per variant (default: all).")
+    parser.add_argument(
+        "--leave-one-out",
+        action="store_true",
+        help="Draw backbone_library decoys from --structures-dir, excluding each target domain.",
+    )
+    parser.add_argument("--max-pool", type=int, default=None, help="Cap the leave-one-out decoy pool size.")
     parser.add_argument("--mask-type", default="bidirectional_mlm")
     parser.add_argument("--device", type=int, default=0)
     parser.add_argument("--features-out", default=None, help="Cache scored features here (CSV).")
@@ -296,6 +327,8 @@ def main():
         "ensemble_sigma": args.ensemble_sigma,
         "decoy_library": args.decoy_library,
         "n_decoys": args.n_decoys,
+        "leave_one_out": args.leave_one_out,
+        "max_pool": args.max_pool,
         "n_variants": len(diffed),
         "n_domains": len({r["domain"] for r in rows}),
         "skips": skips,
