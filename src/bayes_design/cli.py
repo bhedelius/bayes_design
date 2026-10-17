@@ -61,6 +61,13 @@ def _build_parser() -> argparse.ArgumentParser:
         type=float,
     )
     parser.add_argument("--temperature", help="The temperature to use for sampling", default=1.0, type=float)
+    parser.add_argument(
+        "--contrast_weight",
+        help="Scales the magnitude of a denominator/contrast term marked 'dose' in the objective. "
+        "1.0 is the plain ratio; other values titrate how hard the contrast is pushed.",
+        default=1.0,
+        type=float,
+    )
     parser.add_argument("--n_designs", help="The number of designs to generate", default=1, type=int)
     parser.add_argument("--seed", help="The random seed to use", default=0, type=int)
     parser.add_argument("--results_dir", help="The directory to save results to", default="./results")
@@ -118,7 +125,11 @@ def example_design(args: argparse.Namespace) -> dict:
             contexts["ligand_b"] = get_ligand(args.protein_id, ligand_file=args.ligand_file_b)
 
     prob_model = build_model(
-        args.model_name, device=device, contexts=contexts, bayes_balance_factor=args.bayes_balance_factor
+        args.model_name,
+        device=device,
+        contexts=contexts,
+        bayes_balance_factor=args.bayes_balance_factor,
+        contrast_weight=args.contrast_weight,
     )
 
     if args.ball_mask:

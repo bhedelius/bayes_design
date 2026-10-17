@@ -723,25 +723,41 @@ OBJECTIVES = {
 }
 
 
-def _build_term(spec, device, contexts):
+def _build_term(spec, device, contexts, contrast_weight=1.0):
+    """Build one (model, weight) term. ``dose`` marks a tunable term, the only one
+    ``contrast_weight`` scales (e.g. the denominator of a specificity objective)."""
     spec = dict(spec)
     backend = spec.pop("backend")
     weight = spec.pop("weight")
+    if spec.pop("dose", False):
+        weight *= contrast_weight
     context = contexts.get(spec.pop("context", None))
     model = BACKENDS[backend](device=device, context=context, **spec)
     return model, weight
 
 
-def build_objective(name, device=None, contexts=None, bayes_balance_factor=0.002):
+def build_objective(name, device=None, contexts=None, bayes_balance_factor=0.002, contrast_weight=1.0):
+    """Build a named objective.
+
+    ``contrast_weight`` scales terms marked ``dose`` in OBJECTIVES, titrating how
+    hard a denominator/contrast term is pushed while leaving anchors (e.g. the
+    XLNet marginal) fixed. Objectives with no dosed term are unaffected.
+    """
     contexts = contexts or {}
-    terms = [_build_term(spec, device, contexts) for spec in OBJECTIVES[name]]
+    terms = [_build_term(spec, device, contexts, contrast_weight) for spec in OBJECTIVES[name]]
     return CombinedModel(terms, device=device, balance=bayes_balance_factor)
 
 
-def build_model(name, device=None, contexts=None, bayes_balance_factor=0.002):
+def build_model(name, device=None, contexts=None, bayes_balance_factor=0.002, contrast_weight=1.0):
     """Single entry point used by the CLI: build any objective or backend by name."""
     if name in OBJECTIVES:
-        return build_objective(name, device=device, contexts=contexts, bayes_balance_factor=bayes_balance_factor)
+        return build_objective(
+            name,
+            device=device,
+            contexts=contexts,
+            bayes_balance_factor=bayes_balance_factor,
+            contrast_weight=contrast_weight,
+        )
     if name in BACKENDS:
         return BACKENDS[name](device=device, context=(contexts or {}).get("main"))
     return model_dict[name](device=device)
