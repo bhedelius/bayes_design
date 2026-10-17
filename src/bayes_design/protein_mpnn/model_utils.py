@@ -317,12 +317,9 @@ class XLNetWrapperForProteinMPNNTraining(nn.Module):
 
         perm_mask = torch.zeros((inputs.size(0), inputs.size(1), inputs.size(1)), dtype=torch.float32)
         for i in range(inputs.size(0)):
-            # Sample a factorization order in two non-crossing halves (XLNet recipe;
-            # assumes an even sequence length).
-            perm_index = torch.arange(inputs.size(1))
-            perm_index = perm_index.reshape((-1, inputs.size(1) // 2)).transpose(0, 1)
-            perm_index = perm_index[torch.randperm(inputs.size(1) // 2)]
-            perm_index = torch.flatten(perm_index.transpose(0, 1))
+            # Sample a random factorization order over all positions (XLNet PLM);
+            # works for any sequence length.
+            perm_index = torch.randperm(inputs.size(1))
             # Non-masked functional tokens get order -1: visible to all, seeing no masked token.
             perm_index.masked_fill_(~masked_indices[i] & non_func_mask[i], -1)
             perm_mask[i] = (

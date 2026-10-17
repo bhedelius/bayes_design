@@ -236,7 +236,7 @@ def get_fixed_position_mask_by_res_id(fixed_position_list, res_ids):
     return fixed_position_mask
 
 
-def structure_to_aligned_structure(seq, struct, aligned_seq):
+def structure_to_aligned_structure(struct, aligned_seq):
     """Expand ``struct`` onto the gapped ``aligned_seq``, inserting NaN coordinates
     at gap ('-') positions so the structure lines up with the alignment."""
     unaligned_idx = 0
@@ -270,8 +270,8 @@ def align_and_crop(seq_pro, seq_anti, struct_pro, struct_anti):
         aligned_seq_pro += aligned_seq_pro_tmp[i]
         aligned_seq_anti += aligned_seq_anti_tmp[i]
 
-    new_struct_pro = structure_to_aligned_structure(seq_pro, struct_pro, aligned_seq_pro)
-    new_struct_anti = structure_to_aligned_structure(seq_anti, struct_anti, aligned_seq_anti)
+    new_struct_pro = structure_to_aligned_structure(struct_pro, aligned_seq_pro)
+    new_struct_anti = structure_to_aligned_structure(struct_anti, aligned_seq_anti)
 
     # Strip beginning/end residues absent in the pro sequence
     n_beg = 0

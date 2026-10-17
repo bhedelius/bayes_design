@@ -151,31 +151,6 @@ class CathDataset(PDBDataset):
         key = (domain.class_number, domain.architecture, domain.topology, domain.homologous_superfamily)
         return self.superfamily_groups.get(key, [])
     
-def batch_align_sequence_with_res_ids(seq1, res_ids1, seq2, res_ids2):
-    """Batch variant of align_sequences_with_res_ids. Uses multiprocessing to align in parallel.
-    Args:
-        seq1 ((B) list of (N) list of str): A list of sequences, where each sequence is a list of amino acids.
-        res_ids1 ((B, N) tensor): A tensor of residue ids corresponding to each amino acid in seq1.
-        seq2 ((B) list of (M) list of str): A list of sequences, where each sequence is a list of amino acids.
-        res_ids2 ((B, M) tensor): A tensor of residue ids corresponding to each amino acid in seq2.
-    """
-    import multiprocessing
-    
-    # create a pool of workers
-    pool = multiprocessing.Pool()
-
-    # align each sequence pair in parallel
-    results = pool.starmap(align_sequences_with_res_ids, zip(seq1, res_ids1, seq2, res_ids2))
-
-    # close the pool
-    pool.close()
-
-    return results
-
-    
-
-
-
 # Example function to align and map residue ids
 def align_sequences_with_res_ids(seq1, res_ids1, seq2, res_ids2, coords1, coords2):
     """
@@ -258,6 +233,7 @@ def compute_full_sequence_identity(seq1, seq2):
     match_started = False
     cnt = 0
     match_cnt = 0
+    beg = 0
     for i, (char_a, char_b) in enumerate(zip(seq1, seq2)):
         if char_a != char_b or char_a == "-" or char_b == "-":
             if not match_started:
@@ -270,16 +246,21 @@ def compute_full_sequence_identity(seq1, seq2):
             match_cnt += 1
 
         cnt += 1
-        
+
     # Compute length of mismatching tail and remove penalty
+    i = 0
     for i, (char_a, char_b) in enumerate(zip(reversed(seq1), reversed(seq2))):
         if char_a == char_b:
             break
     cnt -= i
-    end = beg + cnt
 
+    # No matching column: report zero identity rather than crash.
+    if cnt <= 0:
+        return 0.0, beg, beg
+
+    end = beg + cnt
     sequence_identity = match_cnt / cnt
-    
+
     return sequence_identity, beg, end
 
 
@@ -517,8 +498,8 @@ def find_cath_chain_matches(args, logdir, n_comparisons_per_domain=20, n_regions
                     domains_w_error.add(domain.domain_name)
                     domain_1_w_error.add(domain.domain_name)
                     msg = "Error message:" + "\n" + str(e) + "\n" + \
-                        f"Error processing other domain {domain.domain_name}." + "\n" + \
-                        f"First domain error rate {len(domain_1_w_error) / i}."
+                        f"Error processing first domain {domain.domain_name}." + "\n" + \
+                        f"First domains with errors so far: {len(domain_1_w_error)}."
                     logging.error(msg)
                     continue
                     
