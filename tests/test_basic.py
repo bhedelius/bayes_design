@@ -129,10 +129,10 @@ def test_backbone_library_averages_cropped_backbones():
         torch.full((2, 4, 3), 9.0),  # too short, skipped
     ]
     wrapper = BackboneLibraryWrapper(inner, library)
-    kw = dict(seq=["-" * 3], struct=None, decode_order=list(range(3)), token_to_decode=torch.tensor([0]))
+    call = dict(seq=["-" * 3], decode_order=list(range(3)), token_to_decode=torch.tensor([0]))
 
-    out = wrapper(**kw)
-    expected = (inner(struct=torch.full((3, 4, 3), 2.0), **kw) + inner(struct=torch.full((3, 4, 3), 4.0), **kw)) / 2
+    out = wrapper(struct=None, **call)
+    expected = (inner(struct=torch.full((3, 4, 3), 2.0), **call) + inner(struct=torch.full((3, 4, 3), 4.0), **call)) / 2
     assert torch.allclose(out, expected)
 
 
