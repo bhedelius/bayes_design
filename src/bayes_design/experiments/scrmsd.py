@@ -6,9 +6,9 @@ measure sequence identity between (aligned) sequences. They have no heavy
 dependencies and are unit-tested.
 
 The full scRMSD *pipeline* — predict a structure for each designed sequence with
-ESMFold and filter by agreement with the target — lives on the `csdesign` branch
-and additionally requires ESMFold, CATH data files, and that branch's residue-id
-based masking utilities. Port that separately if/when those are wired up.
+ESMFold and filter by agreement with the target — lives in ``scrmsd_experiment.py``
+and reuses the primitives here; it additionally requires ESMFold, CATH data files,
+and the residue-id based masking utilities in ``utils``.
 """
 
 import numpy as np

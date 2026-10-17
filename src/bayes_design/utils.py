@@ -2,6 +2,7 @@ import os
 
 import numpy as np
 import torch
+from Bio import pairwise2
 from Bio.PDB import PDBParser
 
 from .protein_mpnn.protein_mpnn_utils import StructureDatasetPDB, parse_PDB
@@ -212,3 +213,114 @@ def compute_distogram(coordinates):
     # No need to normalize probabilities to sum to 1, because there is just one one in each distogram
 
     return distogram
+
+
+def get_fixed_position_mask_by_res_id(fixed_position_list, res_ids):
+    """Fixed-position mask keyed by residue id rather than sequence index.
+
+    Unlike ``get_fixed_position_mask``, this handles structures with non-contiguous
+    or gapped residue numbering: ``fixed_position_list`` is a flat list of
+    (start, end) residue-id pairs, and a position is fixed when its ``res_ids``
+    entry falls in one of those inclusive ranges.
+    """
+    full_fixed_position_list = [
+        range(fixed_position_list[i], fixed_position_list[i + 1] + 1)
+        for i in range(0, len(fixed_position_list), 2)
+    ]
+    full_fixed_position_list = {item for sublist in full_fixed_position_list for item in sublist}
+
+    fixed_position_mask = np.zeros(len(res_ids))
+    for i, res_id in enumerate(res_ids):
+        if res_id in full_fixed_position_list:
+            fixed_position_mask[i] = 1
+    return fixed_position_mask
+
+
+def structure_to_aligned_structure(seq, struct, aligned_seq):
+    """Expand ``struct`` onto the gapped ``aligned_seq``, inserting NaN coordinates
+    at gap ('-') positions so the structure lines up with the alignment."""
+    unaligned_idx = 0
+    new_struct = torch.zeros(len(aligned_seq), 4, 3)
+    for i in range(len(aligned_seq)):
+        if aligned_seq[i] == "-":
+            new_struct[i] = torch.zeros(4, 3) * float("nan")
+        else:
+            new_struct[i] = struct[unaligned_idx]
+            unaligned_idx += 1
+    return new_struct
+
+
+def align_and_crop(seq_pro, seq_anti, struct_pro, struct_anti):
+    """Align two sequences/structures, crop to their shared span, and merge.
+
+    Assumes the sequences differ only by residues present in one but not the
+    other. Returns the two gapped sequences, a merged sequence (preferring
+    ``seq_pro``, 'X' where both gap), and both structures expanded onto the
+    cropped alignment.
+    """
+    alignments = pairwise2.align.globalxx(seq_pro, seq_anti, penalize_extend_when_opening=True)
+    aligned_seq_pro_tmp, aligned_seq_anti_tmp, score, start, end = alignments[0]
+
+    aligned_seq_pro = ""
+    aligned_seq_anti = ""
+    for i in range(len(aligned_seq_pro_tmp)):
+        # Drop positions where both sequences gap
+        if aligned_seq_pro_tmp[i] == "-" and aligned_seq_anti_tmp[i] == "-":
+            continue
+        aligned_seq_pro += aligned_seq_pro_tmp[i]
+        aligned_seq_anti += aligned_seq_anti_tmp[i]
+
+    new_struct_pro = structure_to_aligned_structure(seq_pro, struct_pro, aligned_seq_pro)
+    new_struct_anti = structure_to_aligned_structure(seq_anti, struct_anti, aligned_seq_anti)
+
+    # Strip beginning/end residues absent in the pro sequence
+    n_beg = 0
+    while aligned_seq_pro[n_beg] == "-":
+        n_beg += 1
+    n_end = 0
+    while aligned_seq_pro[-(n_end + 1)] == "-":
+        n_end += 1
+
+    if n_end == 0:
+        aligned_seq_pro = aligned_seq_pro[n_beg:]
+        aligned_seq_anti = aligned_seq_anti[n_beg:]
+        new_struct_pro = new_struct_pro[n_beg:]
+        new_struct_anti = new_struct_anti[n_beg:]
+    else:
+        aligned_seq_pro = aligned_seq_pro[n_beg:-n_end]
+        aligned_seq_anti = aligned_seq_anti[n_beg:-n_end]
+        new_struct_pro = new_struct_pro[n_beg:-n_end]
+        new_struct_anti = new_struct_anti[n_beg:-n_end]
+
+    # Merge, preferring the pro residue and falling back to 'X' where both gap
+    merged_seq = ""
+    for i in range(len(aligned_seq_pro)):
+        if aligned_seq_pro[i] != "-":
+            merged_seq += aligned_seq_pro[i]
+        elif aligned_seq_anti[i] != "-":
+            merged_seq += aligned_seq_anti[i]
+        else:
+            merged_seq += "X"
+
+    return aligned_seq_pro, aligned_seq_anti, merged_seq, new_struct_pro, new_struct_anti
+
+
+def get_ball_mask(fixed_position_list, struct, res_ids, radius=8):
+    """Mask (0) every residue within ``radius`` angstroms (CA-CA) of any unfixed
+    position, keeping the rest at 1. Used to free a local ball around designed sites.
+
+    Args:
+        fixed_position_list (list): Flat (start, end) residue-id pairs for fixed positions.
+        struct ((L x 4 x 3) np.array): Backbone coordinates of the protein.
+        res_ids (list): Residue ids aligned to ``struct``.
+        radius (float): Neighborhood radius in angstroms.
+    """
+    struct_ca = struct[:, 1]
+    fixed_position_mask = get_fixed_position_mask_by_res_id(fixed_position_list, res_ids)
+    ball_mask = np.ones(len(res_ids))
+    unfixed_position_mask = fixed_position_mask == 0
+    for i in range(len(res_ids)):
+        if unfixed_position_mask[i]:
+            neighbors_mask = np.linalg.norm(struct_ca - struct_ca[i], axis=-1) < radius
+            ball_mask[neighbors_mask] = 0
+    return ball_mask
