@@ -287,6 +287,36 @@ Provenance: commit `d375dac`; Tsuboyama 2023 Dataset1
 per-domain AlphaFold backbones; `bidirectional_mlm` scoring; run on ribo (Quadro RTX
 5000); sigma sweep over a fixed 20-domain / 50-variant subset.
 
+#### Result: the noise-ensemble numerator (Fix 3) does not recover conformational entropy
+Fix 3 replaces the single-backbone likelihood `p(seq | b0)` with the basin average
+`E_b[p(seq | b)]` (objective `bayes_design_basin`). Re-fitting the cached sigma-sweep
+features (same 700 variants / 14 domains) with the ensemble as the numerator, correlations
+of within-domain-differenced features against measured `ddG`:
+
+| Numerator | sigma | Pearson | Spearman | corr(f_ens, f_num) |
+| --- | --- | --- | --- | --- |
+| single backbone (f_num) | - | 0.517 | 0.553 | - |
+| noise ensemble (f_ens) | 0.1 | 0.507 | 0.537 | 0.98 |
+| noise ensemble (f_ens) | 0.3 | 0.512 | 0.535 | 0.86 |
+| noise ensemble (f_ens) | 0.6 | 0.384 | 0.288 | 0.50 |
+| noise ensemble (f_ens) | 1.0 | 0.015 | 0.062 | 0.02 |
+
+At the full-objective level (numerator plus XLNet denominator, sigma 0.1), `bayes_design`
+(f_num + f_xlnet) gives 0.566 / 0.586 while `bayes_design_basin` (f_ens + f_xlnet) gives
+0.560 / 0.576 -- slightly worse.
+
+The noise ensemble never improves ranking. At small sigma it is nearly collinear with the
+single backbone (0.98), so averaging only adds variance; as sigma grows the perturbed
+backbones stop encoding the fold and the averaged likelihood collapses toward random
+(sigma 1.0). This is the same failure, and the same cause, as the Fix 1 noise denominator:
+isotropic Gaussian backbone noise is not a physical sample of the folded basin. Recovering
+conformational entropy would need a physically meaningful backbone ensemble (normal modes,
+short MD, or an AlphaFold/ESMFold ensemble), which is untested here.
+
+Provenance: features from the sigma sweep (commit `d375dac`; Tsuboyama 2023 Dataset1,
+Zenodo 7844779; per-domain AlphaFold backbones; `bidirectional_mlm`; ribo Quadro RTX 5000);
+re-fit offline with `bayes_design.experiments.calibrate_dg` helpers at commit `4161c16`.
+
 ### Visualizing distribution shift
 ```
 bayes-design-experiment viz_probs --protein_id 1PIN --decode_order n_to_c --fixed_positions 34 34 --sequence KLPPGWEKRMSRSSGRVYYFNHITNASQFERPSG --results_path ./results/probs_viz_KLPP
