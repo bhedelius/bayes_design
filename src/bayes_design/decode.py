@@ -290,7 +290,7 @@ def greedy_decode(
         )
         probs = apply_aa_allowed_mask(probs, aa_allowed_mask, [idx])
         next_item = torch.argmax(probs)
-        log_probs.append(np.log(np.max(probs.detach().cpu().numpy())))
+        log_probs.append(np.log(max(float(probs.max()), 1e-12)))
         aa = AMINO_ACID_ORDER[next_item]
         current_seq = list(current_seq)
         current_seq[idx] = aa
@@ -418,6 +418,8 @@ def beam_decode(
         all_candidates = []
         for (current_seq, score), next_aa_probs in zip(top_candidates, top_candidate_probs):
             for i, prob in enumerate(next_aa_probs.tolist()):
+                if prob <= 0.0:
+                    continue  # disallowed amino acid (hard-masked) — not a candidate, and avoids log(0)
                 candidate_seq = current_seq.copy()
                 candidate_seq[decode_idx] = AMINO_ACID_ORDER[i]
                 candidate = [candidate_seq, score + [log(prob)]]

@@ -21,16 +21,27 @@ from bayes_design.utils import resolve_protein_input
 
 
 def get_sequences_from_file(file_path):
-    """Read uppercase amino-acid sequences from a FASTA/txt file (headers ignored)."""
-    sequences = []
+    """Read amino-acid sequences from a FASTA or one-per-line txt file.
+
+    FASTA records (``>`` headers) are joined across wrapped lines; a header-less file is read
+    one sequence per line. Only uppercase/gap sequences are returned.
+    """
     with open(file_path) as f:
-        for line in f:
-            line = line.strip()
-            if not line or line.startswith(">"):
-                continue
-            if all(c.isupper() or c == "-" for c in line):
-                sequences.append(line)
-    return sequences
+        lines = [ln.strip() for ln in f]
+    if any(ln.startswith(">") for ln in lines):
+        sequences, current = [], []
+        for ln in lines:
+            if ln.startswith(">"):
+                if current:
+                    sequences.append("".join(current))
+                    current = []
+            elif ln:
+                current.append(ln)
+        if current:
+            sequences.append("".join(current))
+    else:
+        sequences = [ln for ln in lines if ln]
+    return [s for s in sequences if s and all(c.isupper() or c == "-" for c in s)]
 
 
 def score_sequences(

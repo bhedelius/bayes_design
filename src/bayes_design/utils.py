@@ -424,16 +424,17 @@ def resolve_aa_allowed_mask(aa_allowed_mask, exclude_aa, seq_len, default_exclud
 
 
 def apply_aa_allowed_mask(probs, aa_allowed_mask, positions):
-    """Zero disallowed amino acids per row of ``probs`` then renormalize (clamped away from 0).
+    """Hard-zero disallowed amino acids per row of ``probs`` then renormalize.
 
-    ``probs`` is an (n_rows, A) torch tensor; row ``r`` is masked by ``aa_allowed_mask`` row
-    ``positions[r]`` (a length-1 ``positions`` broadcasts the same row to every prob row).
+    Disallowed amino acids stay at exactly 0 (never selectable); only the denominator is
+    clamped to avoid dividing an all-zero row by zero. ``probs`` is an (n_rows, A) torch
+    tensor; row ``r`` is masked by ``aa_allowed_mask`` row ``positions[r]`` (a length-1
+    ``positions`` broadcasts the same row to every prob row).
     """
     rows = aa_allowed_mask[np.asarray(positions), : probs.shape[1]]
     mask = torch.as_tensor(rows, dtype=probs.dtype, device=probs.device)
     probs = probs * mask
-    probs = probs / torch.clamp(probs.sum(dim=1, keepdim=True), min=1e-12)
-    return torch.clamp(probs, min=1e-12)
+    return probs / torch.clamp(probs.sum(dim=1, keepdim=True), min=1e-12)
 
 
 def parse_position_string(position_str):
@@ -476,6 +477,8 @@ def build_aa_allowed_mask(design_regions, seq_len, seq=None, consider_wt_aa=Fals
     Positions in no region are fixed; each region sets its positions designable and may
     restrict identities via ``allowed_aas`` or ``excluded_aas`` (not both). Regions may not
     overlap. ``aa_allowed_mask`` is (seq_len, 21); fixed positions are all-zero.
+    ``consider_wt_aa`` re-adds the wild-type residue at each design position even where a
+    region's ``excluded_aas`` forbade it.
     """
     if not isinstance(design_regions, dict):
         raise TypeError(f"design_regions must be a dict, got {type(design_regions).__name__}.")
@@ -500,6 +503,8 @@ def build_aa_allowed_mask(design_regions, seq_len, seq=None, consider_wt_aa=Fals
             invalid = aa_set - AMINO_ACID_SET
             if invalid:
                 raise ValueError(f"Design region '{name}' has invalid amino acids in '{key}': {sorted(invalid)}.")
+            if has_allowed and not aa_set:
+                raise ValueError(f"Design region '{name}' has an empty 'allowed_aas' (no residue would be allowed).")
             region_aa_specs[name] = ("allowed" if has_allowed else "excluded", aa_set)
         else:
             region_aa_specs[name] = None

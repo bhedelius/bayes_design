@@ -45,7 +45,8 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--config", help="Path to a JSON config file whose values override CLI args", default=None)
     parser.add_argument(
         "--consider_wt_aa",
-        help="Always keep the wild-type amino acid in the allowed set at each design position",
+        help="Always keep the wild-type amino acid in the allowed set at each design position "
+        "(overrides a region's excluded_aas for the WT residue)",
         action="store_true",
     )
     parser.add_argument(

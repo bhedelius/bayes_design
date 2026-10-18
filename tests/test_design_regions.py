@@ -61,6 +61,7 @@ def test_consider_wt_aa_readds_wildtype():
         {"z": {"positions": "1", "allowed_aas": "A", "excluded_aas": "C"}},  # both specs
         {"w": {"positions": "99"}},  # out of range
         {"noPos": {"allowed_aas": "A"}},  # missing positions
+        {"empty": {"positions": "1", "allowed_aas": ""}},  # empty allowed set
     ],
 )
 def test_build_aa_allowed_mask_errors(bad):

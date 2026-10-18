@@ -52,7 +52,7 @@ def evaluate_log_prob(
     for i, tok in enumerate(token_to_decode):
         aa = seq[tok]
         seq_idx = AMINO_ACID_ORDER.index(aa)
-        log_prob += math.log(probs[i, seq_idx])
+        log_prob += math.log(max(float(probs[i, seq_idx]), 1e-12))
 
     return log_prob
 
