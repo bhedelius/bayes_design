@@ -8,7 +8,7 @@ import math
 import numpy as np
 import torch
 
-from bayes_design.utils import AMINO_ACID_ORDER, aa_allowed_mask_from_exclude
+from bayes_design.utils import AMINO_ACID_ORDER, apply_aa_allowed_mask, resolve_aa_allowed_mask
 
 
 def evaluate_log_prob(
@@ -33,10 +33,7 @@ def evaluate_log_prob(
         sequence (str): a string (no spaces) representing an amino acid sequence
         seq_to_struct_model (nn.Module): a network taking as input a
     """
-    if aa_allowed_mask is None:
-        if exclude_aa is None:
-            exclude_aa = []
-        aa_allowed_mask = aa_allowed_mask_from_exclude(exclude_aa, len(seq))
+    aa_allowed_mask = resolve_aa_allowed_mask(aa_allowed_mask, exclude_aa, len(seq), default_exclude=())
     n_fixed_positions = int(fixed_position_mask.sum())
     n_predicted_positions = len(seq) - n_fixed_positions
 
@@ -49,10 +46,7 @@ def evaluate_log_prob(
         token_to_decode=token_to_decode,
         mask_type=mask_type,
     )
-    for k, pos in enumerate(token_to_decode):
-        pos_mask = torch.tensor(aa_allowed_mask[int(pos), : probs.shape[1]], dtype=probs.dtype, device=probs.device)
-        probs[k] = probs[k] * pos_mask
-    probs = probs / torch.clamp(probs.sum(dim=1, keepdim=True), min=1e-12)
+    probs = apply_aa_allowed_mask(probs, aa_allowed_mask, token_to_decode)
 
     log_prob = 0
     for i, tok in enumerate(token_to_decode):

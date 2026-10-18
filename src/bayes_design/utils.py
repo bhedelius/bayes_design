@@ -414,6 +414,28 @@ def aa_allowed_mask_from_exclude(exclude_aa, seq_len):
     return mask
 
 
+def resolve_aa_allowed_mask(aa_allowed_mask, exclude_aa, seq_len, default_exclude=("C",)):
+    """Return ``aa_allowed_mask``, or build it from ``exclude_aa`` (``default_exclude`` if unset)."""
+    if aa_allowed_mask is not None:
+        return aa_allowed_mask
+    if exclude_aa is None:
+        exclude_aa = list(default_exclude)
+    return aa_allowed_mask_from_exclude(exclude_aa, seq_len)
+
+
+def apply_aa_allowed_mask(probs, aa_allowed_mask, positions):
+    """Zero disallowed amino acids per row of ``probs`` then renormalize (clamped away from 0).
+
+    ``probs`` is an (n_rows, A) torch tensor; row ``r`` is masked by ``aa_allowed_mask`` row
+    ``positions[r]`` (a length-1 ``positions`` broadcasts the same row to every prob row).
+    """
+    rows = aa_allowed_mask[np.asarray(positions), : probs.shape[1]]
+    mask = torch.as_tensor(rows, dtype=probs.dtype, device=probs.device)
+    probs = probs * mask
+    probs = probs / torch.clamp(probs.sum(dim=1, keepdim=True), min=1e-12)
+    return torch.clamp(probs, min=1e-12)
+
+
 def parse_position_string(position_str):
     """Parse a 1-indexed position selector into a sorted list of unique 0-indexed positions.
 
@@ -496,20 +518,18 @@ def build_aa_allowed_mask(design_regions, seq_len, seq=None, consider_wt_aa=Fals
     aa_allowed_mask = np.zeros((seq_len, len(AMINO_ACID_ORDER)))
     for name, pos_set in region_positions.items():
         aa_spec = region_aa_specs[name]
-        for pos in pos_set:
-            fixed_position_mask[pos] = 0.0
-            if aa_spec is None:
-                aa_allowed_mask[pos, :20] = 1.0
-            elif aa_spec[0] == "allowed":
-                for aa in aa_spec[1]:
-                    aa_allowed_mask[pos, AMINO_ACID_ORDER.index(aa)] = 1.0
-            else:
-                aa_allowed_mask[pos, :20] = 1.0
-                for aa in aa_spec[1]:
-                    aa_allowed_mask[pos, AMINO_ACID_ORDER.index(aa)] = 0.0
-            if consider_wt_aa:
-                if seq is None:
-                    raise ValueError("seq must be provided when consider_wt_aa is True.")
+        row = np.zeros(len(AMINO_ACID_ORDER))
+        if aa_spec is None or aa_spec[0] == "excluded":
+            row[:20] = 1.0
+        for aa in aa_spec[1] if aa_spec else ():
+            row[AMINO_ACID_ORDER.index(aa)] = 1.0 if aa_spec[0] == "allowed" else 0.0
+        positions = sorted(pos_set)
+        fixed_position_mask[positions] = 0.0
+        aa_allowed_mask[positions] = row
+        if consider_wt_aa:
+            if seq is None:
+                raise ValueError("seq must be provided when consider_wt_aa is True.")
+            for pos in positions:
                 if seq[pos] in AMINO_ACID_ORDER:
                     aa_allowed_mask[pos, AMINO_ACID_ORDER.index(seq[pos])] = 1.0
     return fixed_position_mask, aa_allowed_mask

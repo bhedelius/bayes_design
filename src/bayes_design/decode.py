@@ -12,7 +12,7 @@ import torch
 
 from .evaluate import metric_dict
 from .model import BayesDesign
-from .utils import AMINO_ACID_ORDER, aa_allowed_mask_from_exclude
+from .utils import AMINO_ACID_ORDER, apply_aa_allowed_mask, resolve_aa_allowed_mask
 
 ####################################################################################
 # Decode Orders
@@ -127,10 +127,7 @@ def decode_combinations(
     """Consider all combinations of 6 positions from a set of 19 given positions (indicated by the unfixed positions in the fixed position mask). Use an n to c decode order for each combination of positions.
     Greedy decode. Select the three decoded sequences with the highest probability. Repeat for 5, 4, 3, 2, and 1 position.
     """
-    if aa_allowed_mask is None:
-        if exclude_aa is None:
-            exclude_aa = ["C"]
-        aa_allowed_mask = aa_allowed_mask_from_exclude(exclude_aa, len(seq))
+    aa_allowed_mask = resolve_aa_allowed_mask(aa_allowed_mask, exclude_aa, len(seq))
     if from_scratch:
         mask_type = "bidirectional_autoregressive"
     else:
@@ -214,10 +211,7 @@ def max_prob_decode(
     # Recalculate the probability of every different amino at each unfixed position, condiioned on the previous selection.
     # Select the next residue based on the highest margin, etc.
     # Repeat n_decoded times
-    if aa_allowed_mask is None:
-        if exclude_aa is None:
-            exclude_aa = ["C"]
-        aa_allowed_mask = aa_allowed_mask_from_exclude(exclude_aa, len(seq))
+    aa_allowed_mask = resolve_aa_allowed_mask(aa_allowed_mask, exclude_aa, len(seq))
     if from_scratch:
         mask_type = "bidirectional_autoregressive"
     else:
@@ -243,10 +237,7 @@ def max_prob_decode(
             token_to_decode=token_to_decode,
             mask_type=mask_type,
         )
-        for k, pos in enumerate(token_to_decode):
-            pos_mask = torch.tensor(aa_allowed_mask[pos, : probs.shape[1]], dtype=probs.dtype, device=probs.device)
-            probs[k] = probs[k] * pos_mask
-        probs = probs / torch.clamp(probs.sum(dim=1, keepdim=True), min=1e-12)
+        probs = apply_aa_allowed_mask(probs, aa_allowed_mask, token_to_decode)
         # Select the position and amino acid for which the difference in probability between the true amino acid and the best alternate amino acid is the largest
         token_to_decode_true_aa_indices = [AMINO_ACID_ORDER.index(unmasked_seq[j]) for j in token_to_decode]
         true_probs = probs[range(len(token_to_decode)), token_to_decode_true_aa_indices]  # N
@@ -279,10 +270,7 @@ def greedy_decode(
     return_prob=False,
     **kwargs,
 ):
-    if aa_allowed_mask is None:
-        if exclude_aa is None:
-            exclude_aa = ["C"]
-        aa_allowed_mask = aa_allowed_mask_from_exclude(exclude_aa, len(seq))
+    aa_allowed_mask = resolve_aa_allowed_mask(aa_allowed_mask, exclude_aa, len(seq))
     if from_scratch:
         mask_type = "bidirectional_autoregressive"
     else:
@@ -300,10 +288,7 @@ def greedy_decode(
             token_to_decode=torch.tensor([idx]),
             mask_type=mask_type,
         )
-        pos_mask = torch.tensor(aa_allowed_mask[idx, : probs.shape[1]], dtype=probs.dtype, device=probs.device)
-        probs[0] = probs[0] * pos_mask
-        probs = probs / torch.clamp(torch.sum(probs, dim=1, keepdim=True), min=1e-12)
-        probs = torch.clamp(probs, min=1e-12)
+        probs = apply_aa_allowed_mask(probs, aa_allowed_mask, [idx])
         next_item = torch.argmax(probs)
         log_probs.append(np.log(np.max(probs.detach().cpu().numpy())))
         aa = AMINO_ACID_ORDER[next_item]
@@ -330,10 +315,7 @@ def sample_decode(
     **kwargs,
 ):
     assert not isinstance(prob_model, BayesDesign), "BayesDesign objective only applies when maximizing probability"
-    if aa_allowed_mask is None:
-        if exclude_aa is None:
-            exclude_aa = ["C"]
-        aa_allowed_mask = aa_allowed_mask_from_exclude(exclude_aa, len(seq))
+    aa_allowed_mask = resolve_aa_allowed_mask(aa_allowed_mask, exclude_aa, len(seq))
     if from_scratch:
         mask_type = "bidirectional_autoregressive"
     else:
@@ -359,8 +341,6 @@ def sample_decode(
         )
         probs[0] = probs[0] * aa_allowed_mask[idx, : probs.shape[1]]
         probs = probs / np.clip(probs.sum(axis=1, keepdims=True), 1e-12, None)
-        probs = np.clip(probs, 1e-12, 1.0)
-        probs = probs / probs.sum(axis=1, keepdims=True)
         next_item = np.random.choice(np.arange(probs.shape[1]), p=probs[0])
 
         aa = AMINO_ACID_ORDER[next_item]
@@ -371,10 +351,7 @@ def sample_decode(
 
 
 def random_decode(prob_model, struct, seq, decode_order, fixed_position_mask, exclude_aa=None, aa_allowed_mask=None, **kwargs):
-    if aa_allowed_mask is None:
-        if exclude_aa is None:
-            exclude_aa = ["C"]
-        aa_allowed_mask = aa_allowed_mask_from_exclude(exclude_aa, len(seq))
+    aa_allowed_mask = resolve_aa_allowed_mask(aa_allowed_mask, exclude_aa, len(seq))
     current_seq = seq
     for idx in decode_order:
         if fixed_position_mask[idx]:
@@ -401,10 +378,7 @@ def beam_decode(
     aa_allowed_mask=None,
     **kwargs,
 ):
-    if aa_allowed_mask is None:
-        if exclude_aa is None:
-            exclude_aa = ["C"]
-        aa_allowed_mask = aa_allowed_mask_from_exclude(exclude_aa, len(seq))
+    aa_allowed_mask = resolve_aa_allowed_mask(aa_allowed_mask, exclude_aa, len(seq))
 
     # Every ProbabilityModel exposes .device; CombinedModel holds its terms in a plain
     # list, so parameters() is empty and can't be used to find the device.
@@ -440,16 +414,7 @@ def beam_decode(
             )
             probs_list.append(probs)
         top_candidate_probs = torch.concat(probs_list, dim=0)
-        pos_mask = torch.tensor(
-            aa_allowed_mask[decode_idx, : top_candidate_probs.shape[1]],
-            dtype=top_candidate_probs.dtype,
-            device=top_candidate_probs.device,
-        )
-        top_candidate_probs = top_candidate_probs * pos_mask.unsqueeze(0)
-        top_candidate_probs = top_candidate_probs / torch.clamp(
-            torch.sum(top_candidate_probs, dim=1, keepdim=True), min=1e-12
-        )
-        top_candidate_probs = torch.clamp(top_candidate_probs, min=1e-12, max=1.0)
+        top_candidate_probs = apply_aa_allowed_mask(top_candidate_probs, aa_allowed_mask, [decode_idx])
         all_candidates = []
         for (current_seq, score), next_aa_probs in zip(top_candidates, top_candidate_probs):
             for i, prob in enumerate(next_aa_probs.tolist()):
