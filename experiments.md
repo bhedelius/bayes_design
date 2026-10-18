@@ -317,6 +317,30 @@ Provenance: features from the sigma sweep (commit `d375dac`; Tsuboyama 2023 Data
 Zenodo 7844779; per-domain AlphaFold backbones; `bidirectional_mlm`; ribo Quadro RTX 5000);
 re-fit offline with `bayes_design.experiments.calibrate_dg` helpers at commit `4161c16`.
 
+#### Result: a physical (normal-mode) ensemble is better-behaved but still does not help
+Because the noise ensemble fails by being off-manifold, Fix 3 was repeated with an
+elastic-network normal-mode ensemble (`--ensemble-sampler normal_modes`): the backbone is
+deformed along soft collective modes of an anisotropic network model, scaled to a target
+CA-RMSD. Same 700 variants / 14 domains, `f_ens` as the numerator:
+
+| Sampler | CA-RMSD | f_ens Pearson | f_ens Spearman | f_num+f_ens Pearson | f_num+f_ens Spearman |
+| --- | --- | --- | --- | --- | --- |
+| single backbone (f_num) | - | 0.517 | 0.553 | - | - |
+| normal modes | 0.3 | 0.493 | 0.550 | 0.518 | 0.549 |
+| normal modes | 0.6 | 0.543 | 0.542 | 0.552 | 0.561 |
+| normal modes | 1.0 | 0.435 | 0.433 | 0.519 | 0.551 |
+
+The diagnosis holds: unlike noise (which collapsed to random by sigma 1.0), the on-manifold
+ensemble does not collapse, and at 0.6 angstroms it nudges Pearson up (0.517 -> 0.543). But
+the gain is within noise (Spearman does not improve), and the best combined fit (0.552 /
+0.561) still trails the XLNet objective (`bayes_design`, 0.566 / 0.586). A physically
+meaningful basin ensemble recovers at most a faint conformational-entropy signal -- not
+enough to improve stability ranking.
+
+Provenance: commit `55d1291`; same subset, data, and scoring as above; normal-mode sampler
+(`sample_backbone_normal_modes`, ANM on the CA trace, 12-angstrom cutoff, 10 soft modes);
+ribo Quadro RTX 5000 (device 1).
+
 ### Visualizing distribution shift
 ```
 bayes-design-experiment viz_probs --protein_id 1PIN --decode_order n_to_c --fixed_positions 34 34 --sequence KLPPGWEKRMSRSSGRVYYFNHITNASQFERPSG --results_path ./results/probs_viz_KLPP
