@@ -64,6 +64,7 @@ Paper = "https://doi.org/10.1038/s41598-023-42032-1"
 [project.scripts]
 bayes-design = "bayes_design.cli:main"
 bayes-design-experiment = "bayes_design.experiment_cli:main"
+bayes-design-score = "bayes_design.score_sequences:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/bayes_design"]

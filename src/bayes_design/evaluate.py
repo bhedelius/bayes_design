@@ -8,10 +8,12 @@ import math
 import numpy as np
 import torch
 
-from bayes_design.utils import AMINO_ACID_ORDER
+from bayes_design.utils import AMINO_ACID_ORDER, aa_allowed_mask_from_exclude
 
 
-def evaluate_log_prob(seq, prob_model, decode_order, fixed_position_mask, mask_type, structure=None, exclude_aa=None):
+def evaluate_log_prob(
+    seq, prob_model, decode_order, fixed_position_mask, mask_type, structure=None, exclude_aa=None, aa_allowed_mask=None
+):
     """
     Evaluate the log probability of the structure for the sequence under a
     sequence to structure model. This measures p(struct|seq) for a designed sequence.
@@ -31,8 +33,10 @@ def evaluate_log_prob(seq, prob_model, decode_order, fixed_position_mask, mask_t
         sequence (str): a string (no spaces) representing an amino acid sequence
         seq_to_struct_model (nn.Module): a network taking as input a
     """
-    if exclude_aa is None:
-        exclude_aa = []
+    if aa_allowed_mask is None:
+        if exclude_aa is None:
+            exclude_aa = []
+        aa_allowed_mask = aa_allowed_mask_from_exclude(exclude_aa, len(seq))
     n_fixed_positions = int(fixed_position_mask.sum())
     n_predicted_positions = len(seq) - n_fixed_positions
 
@@ -45,9 +49,10 @@ def evaluate_log_prob(seq, prob_model, decode_order, fixed_position_mask, mask_t
         token_to_decode=token_to_decode,
         mask_type=mask_type,
     )
-    for aa in exclude_aa:
-        probs[:, AMINO_ACID_ORDER.index(aa)] = 0
-    probs = probs / probs.sum(dim=1, keepdim=True)
+    for k, pos in enumerate(token_to_decode):
+        pos_mask = torch.tensor(aa_allowed_mask[int(pos), : probs.shape[1]], dtype=probs.dtype, device=probs.device)
+        probs[k] = probs[k] * pos_mask
+    probs = probs / torch.clamp(probs.sum(dim=1, keepdim=True), min=1e-12)
 
     log_prob = 0
     for i, tok in enumerate(token_to_decode):
@@ -59,7 +64,13 @@ def evaluate_log_prob(seq, prob_model, decode_order, fixed_position_mask, mask_t
 
 
 def evaluate_sequence_log_prob(
-    seq, prob_model, structure=None, decode_order=None, mask_type="bidirectional_mlm", exclude_aa=None
+    seq,
+    prob_model,
+    structure=None,
+    decode_order=None,
+    mask_type="bidirectional_mlm",
+    exclude_aa=None,
+    aa_allowed_mask=None,
 ):
     """Teacher-forced summed log-likelihood of a full sequence under one model.
 
@@ -79,6 +90,7 @@ def evaluate_sequence_log_prob(
         mask_type=mask_type,
         structure=structure,
         exclude_aa=exclude_aa,
+        aa_allowed_mask=aa_allowed_mask,
     )
 
 
@@ -104,14 +116,19 @@ def evaluate_rmsd(sequence, seq_to_struct_model, targ_struct):
 
 
 def evaluate_perplexity(
-    seq, prob_model, decode_order, structure=None, fixed_position_mask=None, mask_type=None, exclude_aa=None
+    seq,
+    prob_model,
+    decode_order,
+    structure=None,
+    fixed_position_mask=None,
+    mask_type=None,
+    exclude_aa=None,
+    aa_allowed_mask=None,
 ):
     """
     Evaluate the perplexity of the sequence under the model. If fixed positions are provided, they
     are excluded from the perplexity calculation.
     """
-    if exclude_aa is None:
-        exclude_aa = []
     log_prob = evaluate_log_prob(
         seq=seq,
         prob_model=prob_model,
@@ -120,6 +137,7 @@ def evaluate_perplexity(
         fixed_position_mask=fixed_position_mask,
         mask_type=mask_type,
         exclude_aa=exclude_aa,
+        aa_allowed_mask=aa_allowed_mask,
     )
     n_fixed_positions = fixed_position_mask.sum()
     n = len(seq) - n_fixed_positions

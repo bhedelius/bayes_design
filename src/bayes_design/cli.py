@@ -11,10 +11,14 @@ from bayes_design.decode import decode_algorithm_dict, decode_order_dict
 from bayes_design.model import build_model, model_dict, objective_uses_context
 from bayes_design.utils import (
     align_and_crop,
+    build_aa_allowed_mask,
     get_ball_mask,
     get_fixed_position_mask,
     get_ligand,
     get_protein,
+    load_config_and_merge,
+    parse_design_regions_arg,
+    resolve_protein_input,
     seq_struct_from_ligand,
 )
 
@@ -27,7 +31,23 @@ def _build_parser() -> argparse.ArgumentParser:
         choices=list(model_dict.keys()),
         default="bayes_design",
     )
-    parser.add_argument("--protein_id", help="The PDB id of the protein to redesign", default="6MRR")
+    parser.add_argument(
+        "--protein_id", help="The PDB id to fetch from RCSB (alternative to --pdb_path)", default=None
+    )
+    parser.add_argument("--pdb_path", help="Path to a local PDB file (takes priority over --protein_id)", default=None)
+    parser.add_argument(
+        "--design_regions",
+        help='JSON of named designable regions with optional per-region allowed/excluded amino acids, e.g. '
+        '\'{"loop": {"positions": "63-96", "excluded_aas": "C"}}\'. Positions outside every region stay fixed. '
+        "Overrides --fixed_positions/--exclude_aa when provided.",
+        default=None,
+    )
+    parser.add_argument("--config", help="Path to a JSON config file whose values override CLI args", default=None)
+    parser.add_argument(
+        "--consider_wt_aa",
+        help="Always keep the wild-type amino acid in the allowed set at each design position",
+        action="store_true",
+    )
     parser.add_argument(
         "--decode_order",
         help="The order to decode masked parts of the sequence",
@@ -115,8 +135,8 @@ def _build_parser() -> argparse.ArgumentParser:
 def example_design(args: argparse.Namespace) -> dict:
     device = torch.device(f"cuda:{args.device}" if (torch.cuda.is_available()) else "cpu")
 
-    # Get sequence and structure of protein to redesign
-    seq, struct = get_protein(args.protein_id)
+    # Get sequence and structure of protein to redesign (local --pdb_path or RCSB --protein_id)
+    seq, struct = resolve_protein_input(args)
     orig_seq = seq
 
     # Context-aware objectives bind parsed structures/ligands at construction. Source
@@ -154,11 +174,17 @@ def example_design(args: argparse.Namespace) -> dict:
         decoy_library=args.decoy_library,
     )
 
-    if args.ball_mask:
+    if args.design_regions:
+        fixed_position_mask, aa_allowed_mask = build_aa_allowed_mask(
+            args.design_regions, len(seq), seq=seq, consider_wt_aa=args.consider_wt_aa
+        )
+    elif args.ball_mask:
         res_ids = list(range(1, len(seq) + 1))
         fixed_position_mask = get_ball_mask(fixed_position_list=args.fixed_positions, struct=struct, res_ids=res_ids)
+        aa_allowed_mask = None
     else:
         fixed_position_mask = get_fixed_position_mask(fixed_position_list=args.fixed_positions, seq_len=len(seq))
+        aa_allowed_mask = None
     masked_seq = "".join(["-" if not fixed else char for char, fixed in zip(seq, fixed_position_mask)])
 
     # Decode order defines the order in which the masked positions are predicted
@@ -186,6 +212,7 @@ def example_design(args: argparse.Namespace) -> dict:
             temperature=args.temperature,
             n_beams=args.n_beams,
             exclude_aa=args.exclude_aa,
+            aa_allowed_mask=aa_allowed_mask,
         )
     else:
         designed_seqs = []
@@ -201,11 +228,12 @@ def example_design(args: argparse.Namespace) -> dict:
                 temperature=args.temperature,
                 n_beams=args.n_beams,
                 exclude_aa=args.exclude_aa,
+                aa_allowed_mask=aa_allowed_mask,
             )
             designed_seqs.append(designed_seq)
 
     os.makedirs(args.results_dir, exist_ok=True)
-    with open(os.path.join(args.results_dir, f"{args.model_name}_{args.protein_id}_sequences.txt"), "w") as f:
+    with open(os.path.join(args.results_dir, f"{args.model_name}_{args.protein_label}_sequences.txt"), "w") as f:
         for designed in designed_seqs:
             f.write(designed + "\n")
 
@@ -217,10 +245,13 @@ def example_design(args: argparse.Namespace) -> dict:
 
 
 def main() -> None:
-    args = _build_parser().parse_args()
+    parser = _build_parser()
+    args = parser.parse_args()
+    args = load_config_and_merge(args, parser)
+    args = parse_design_regions_arg(args)
     seqs = example_design(args)
     if args.n_designs > 1:
-        print(f"Designs written to {args.results_dir}/{args.model_name}_{args.protein_id}_sequences.txt")
+        print(f"Designs written to {args.results_dir}/{args.model_name}_{args.protein_label}_sequences.txt")
     else:
         for k, v in seqs.items():
             print(f"{k}: {v}")

@@ -1,4 +1,7 @@
+import json
 import os
+import re
+import warnings
 from pathlib import Path
 
 import numpy as np
@@ -9,17 +12,27 @@ from Bio.PDB import PDBParser
 from .protein_mpnn.protein_mpnn_utils import StructureDatasetPDB, parse_PDB
 
 AMINO_ACID_ORDER = "ACDEFGHIKLMNPQRSTVWYX"
+AMINO_ACID_SET = set(AMINO_ACID_ORDER[:-1])  # 20 standard amino acids (excludes 'X')
 
 
-def get_protein(pdb_code="6MRR", structures_dir="./data/structures"):
-    """Get a sequence in string format and 4-atom protein structure in L x 4 x 3
-    tensor format (with atoms in N CA CB C order).
+def get_protein(pdb_code=None, pdb_path=None, structures_dir="./data/structures"):
+    """Get a sequence (str) and 4-atom backbone (L x 4 x 3 tensor, N CA C O order).
+
+    Provide a local ``pdb_path``, or a ``pdb_code`` to fetch from RCSB.
     """
-    pdb_path = os.path.join(structures_dir, pdb_code + ".pdb")
-    if not os.path.exists(pdb_path):
-        os.system(f"cd {structures_dir} && wget -qnc https://files.rcsb.org/view/{pdb_code}.pdb")
+    if pdb_path is not None:
+        if not os.path.exists(pdb_path):
+            raise FileNotFoundError(f"PDB file not found: '{pdb_path}'")
+        resolved_path = pdb_path
+    elif pdb_code is not None:
+        resolved_path = os.path.join(structures_dir, pdb_code + ".pdb")
+        if not os.path.exists(resolved_path):
+            os.makedirs(structures_dir, exist_ok=True)
+            os.system(f"cd {structures_dir} && wget -qnc https://files.rcsb.org/view/{pdb_code}.pdb")
+    else:
+        raise ValueError("Either pdb_code or pdb_path must be provided.")
     chain_list = ["A"]
-    pdb_dict_list = parse_PDB(pdb_path, input_chain_list=chain_list)
+    pdb_dict_list = parse_PDB(resolved_path, input_chain_list=chain_list)
     dataset_valid = StructureDatasetPDB(pdb_dict_list, max_length=20000)
     protein = dataset_valid[0]
     struct = torch.tensor(
@@ -382,3 +395,179 @@ def get_ball_mask(fixed_position_list, struct, res_ids, radius=8):
     ball_mask = np.ones(len(res_ids))
     ball_mask[(dists[unfixed] < radius).any(axis=0)] = 0
     return ball_mask
+
+
+####################################################################################
+# Per-position amino-acid masks and design-region constraints
+####################################################################################
+
+
+def aa_allowed_mask_from_exclude(exclude_aa, seq_len):
+    """Build an (seq_len, 21) mask allowing all 20 standard AAs except ``exclude_aa``.
+
+    Lets the legacy global ``exclude_aa`` interface share the per-position masking path.
+    """
+    mask = np.zeros((seq_len, len(AMINO_ACID_ORDER)))
+    mask[:, :20] = 1.0
+    for aa in exclude_aa:
+        mask[:, AMINO_ACID_ORDER.index(aa)] = 0.0
+    return mask
+
+
+def parse_position_string(position_str):
+    """Parse a 1-indexed position selector into a sorted list of unique 0-indexed positions.
+
+    Accepts comma-separated positions and inclusive ranges, e.g. '3,5-7,88-91'.
+    """
+    cleaned = re.sub(r"\s+", "", position_str)
+    if not cleaned:
+        return []
+    invalid = re.findall(r"[^0-9,\-]", cleaned)
+    if invalid:
+        raise ValueError(f"Invalid character '{invalid[0]}' in position selector '{position_str}'.")
+
+    positions = set()
+    for token in cleaned.split(","):
+        if not token:
+            continue
+        if "-" in token:
+            parts = token.split("-")
+            if len(parts) != 2 or not parts[0] or not parts[1]:
+                raise ValueError(f"Malformed range '{token}' in '{position_str}' (expected 'start-stop').")
+            start, end = int(parts[0]), int(parts[1])
+            if start > end:
+                raise ValueError(f"Range start ({start}) > end ({end}) in '{token}'.")
+            if start < 1:
+                raise ValueError(f"Positions must be >= 1 (1-indexed), got {start}.")
+            positions.update(range(start - 1, end))
+        else:
+            val = int(token)
+            if val < 1:
+                raise ValueError(f"Positions must be >= 1 (1-indexed), got {val}.")
+            positions.add(val - 1)
+    return sorted(positions)
+
+
+def build_aa_allowed_mask(design_regions, seq_len, seq=None, consider_wt_aa=False):
+    """Build (fixed_position_mask, aa_allowed_mask) from a design-regions spec.
+
+    Positions in no region are fixed; each region sets its positions designable and may
+    restrict identities via ``allowed_aas`` or ``excluded_aas`` (not both). Regions may not
+    overlap. ``aa_allowed_mask`` is (seq_len, 21); fixed positions are all-zero.
+    """
+    if not isinstance(design_regions, dict):
+        raise TypeError(f"design_regions must be a dict, got {type(design_regions).__name__}.")
+
+    region_positions = {}
+    region_aa_specs = {}
+    for name, spec in design_regions.items():
+        if "positions" not in spec:
+            raise ValueError(f"Design region '{name}' is missing required key 'positions'.")
+        parsed = parse_position_string(spec["positions"])
+        out_of_range = [p + 1 for p in parsed if p >= seq_len]
+        if out_of_range:
+            raise ValueError(f"Design region '{name}' has positions outside 1-{seq_len}: {out_of_range}.")
+        region_positions[name] = set(parsed)
+
+        has_allowed, has_excluded = "allowed_aas" in spec, "excluded_aas" in spec
+        if has_allowed and has_excluded:
+            raise ValueError(f"Design region '{name}' specifies both 'allowed_aas' and 'excluded_aas'.")
+        if has_allowed or has_excluded:
+            key = "allowed_aas" if has_allowed else "excluded_aas"
+            aa_set = set(spec[key].upper())
+            invalid = aa_set - AMINO_ACID_SET
+            if invalid:
+                raise ValueError(f"Design region '{name}' has invalid amino acids in '{key}': {sorted(invalid)}.")
+            region_aa_specs[name] = ("allowed" if has_allowed else "excluded", aa_set)
+        else:
+            region_aa_specs[name] = None
+
+    names = list(region_positions)
+    for i in range(len(names)):
+        for j in range(i + 1, len(names)):
+            overlap = region_positions[names[i]] & region_positions[names[j]]
+            if overlap:
+                raise ValueError(
+                    f"Position(s) {sorted(p + 1 for p in overlap)} in multiple regions "
+                    f"('{names[i]}', '{names[j]}'); each position may belong to only one."
+                )
+
+    fixed_position_mask = np.ones(seq_len)
+    aa_allowed_mask = np.zeros((seq_len, len(AMINO_ACID_ORDER)))
+    for name, pos_set in region_positions.items():
+        aa_spec = region_aa_specs[name]
+        for pos in pos_set:
+            fixed_position_mask[pos] = 0.0
+            if aa_spec is None:
+                aa_allowed_mask[pos, :20] = 1.0
+            elif aa_spec[0] == "allowed":
+                for aa in aa_spec[1]:
+                    aa_allowed_mask[pos, AMINO_ACID_ORDER.index(aa)] = 1.0
+            else:
+                aa_allowed_mask[pos, :20] = 1.0
+                for aa in aa_spec[1]:
+                    aa_allowed_mask[pos, AMINO_ACID_ORDER.index(aa)] = 0.0
+            if consider_wt_aa:
+                if seq is None:
+                    raise ValueError("seq must be provided when consider_wt_aa is True.")
+                if seq[pos] in AMINO_ACID_ORDER:
+                    aa_allowed_mask[pos, AMINO_ACID_ORDER.index(seq[pos])] = 1.0
+    return fixed_position_mask, aa_allowed_mask
+
+
+def parse_design_regions_arg(args):
+    """Normalize ``args.design_regions`` to a dict (parsing a JSON string if needed)."""
+    dr = getattr(args, "design_regions", None)
+    if dr is None:
+        args.design_regions = {}
+        return args
+    if isinstance(dr, str):
+        try:
+            args.design_regions = json.loads(dr)
+        except json.JSONDecodeError as e:
+            raise ValueError(f"Could not parse --design_regions as JSON: {e}") from e
+    if not isinstance(args.design_regions, dict):
+        raise TypeError(f"design_regions must be a dict, got {type(args.design_regions).__name__}.")
+    return args
+
+
+def load_config_and_merge(args, parser):
+    """Merge a ``--config`` JSON file into ``args`` (JSON values override CLI, with a warning)."""
+    config_path = getattr(args, "config", None)
+    if config_path is None:
+        return args
+    if not os.path.exists(config_path):
+        raise FileNotFoundError(f"Config file not found: '{config_path}'")
+    with open(config_path) as f:
+        config = json.load(f)
+    defaults = vars(parser.parse_args([]))
+    for key, json_value in config.items():
+        if not hasattr(args, key):
+            warnings.warn(f"Config key '{key}' is not a recognized argument -- ignoring.", stacklevel=2)
+            continue
+        if getattr(args, key) != defaults.get(key):
+            warnings.warn(
+                f"CLI '--{key}' ({getattr(args, key)!r}) overridden by config value {json_value!r}.", stacklevel=2
+            )
+        setattr(args, key, json_value)
+    return args
+
+
+def resolve_protein_input(args):
+    """Resolve (seq, struct) from ``args.protein_id``/``args.pdb_path`` and set ``args.protein_label``.
+
+    ``pdb_path`` (a local file) takes priority over ``protein_id`` (fetched from RCSB).
+    """
+    protein_id = getattr(args, "protein_id", None)
+    pdb_path = getattr(args, "pdb_path", None)
+    if protein_id is None and pdb_path is None:
+        raise ValueError("Either --protein_id or --pdb_path must be provided.")
+    if protein_id is not None and pdb_path is not None:
+        warnings.warn(
+            f"Both --protein_id ('{protein_id}') and --pdb_path ('{pdb_path}') given; using --pdb_path.", stacklevel=2
+        )
+    if pdb_path is not None:
+        args.protein_label = os.path.splitext(os.path.basename(pdb_path))[0]
+        return get_protein(pdb_path=pdb_path)
+    args.protein_label = protein_id
+    return get_protein(pdb_code=protein_id)
