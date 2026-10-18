@@ -11,7 +11,7 @@ from torch import nn
 from transformers import XLNetLMHeadModel, XLNetTokenizer
 
 from .protein_mpnn.protein_mpnn_utils import ProteinMPNN
-from .utils import AMINO_ACID_ORDER, load_backbone_library, sample_backbone_noise
+from .utils import AMINO_ACID_ORDER, load_backbone_library, sample_backbone_noise, sample_backbone_normal_modes
 
 
 class ProbabilityModel(nn.Module, ABC):
@@ -488,21 +488,27 @@ class BackboneEnsembleWrapper(ProbabilityModel):
     it reduces exactly to the inner model. Serves as a native-basin numerator
     (conformational entropy) or a partition-function denominator (negative design);
     ``base_struct=None`` perturbs the call-time backbone instead of a bound one.
+    ``sampler`` chooses isotropic Gaussian noise or elastic-network normal modes
+    (``sigma`` is the noise std or the target CA-RMSD respectively).
     """
 
-    def __init__(self, inner, base_struct=None, n_samples=8, sigma=0.1, device=None):
+    def __init__(self, inner, base_struct=None, n_samples=8, sigma=0.1, sampler="noise", device=None):
         super().__init__()
         self.inner = inner
         self.base_struct = base_struct
         self.n_samples = n_samples
         self.sigma = sigma
+        self.sampler = sampler
         self.device = device if device is not None else getattr(inner, "device", None)
 
     def forward(
         self, seq, struct, decode_order, token_to_decode, mask_type="bidirectional_autoregressive", temperature=1.0
     ):
         base = self.base_struct if self.base_struct is not None else struct
-        backbones = sample_backbone_noise(base, self.n_samples, self.sigma)
+        if self.sampler == "normal_modes":
+            backbones = sample_backbone_normal_modes(base, self.n_samples, rmsd=self.sigma)
+        else:
+            backbones = sample_backbone_noise(base, self.n_samples, self.sigma)
         total = None
         for backbone in backbones:
             probs = self.inner(
@@ -739,11 +745,14 @@ def _backend_esm_if1(device, context=None, **kwargs):
     return ESMIF1Wrapper(device=device)
 
 
-def _backend_backbone_ensemble(device, context=None, n_samples=8, sigma=0.1, **kwargs):
-    # ProteinMPNN averaged over noise-perturbed backbones. `context`, when given, is
-    # the raw (L x 4 x 3) backbone to perturb; otherwise the call-time struct is used.
+def _backend_backbone_ensemble(device, context=None, n_samples=8, sigma=0.1, sampler="noise", **kwargs):
+    # ProteinMPNN averaged over perturbed backbones (Gaussian noise or normal modes).
+    # `context`, when given, is the raw (L x 4 x 3) backbone to perturb; otherwise the
+    # call-time struct is used.
     inner = ProteinMPNNWrapper(device=device, struct=None)
-    return BackboneEnsembleWrapper(inner, base_struct=context, n_samples=n_samples, sigma=sigma, device=device)
+    return BackboneEnsembleWrapper(
+        inner, base_struct=context, n_samples=n_samples, sigma=sigma, sampler=sampler, device=device
+    )
 
 
 def _backend_backbone_library(device, context=None, library_dir=None, n_samples=None, max_structures=None, **kwargs):

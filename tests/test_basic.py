@@ -19,7 +19,7 @@ from bayes_design.model import (
     ProbabilityModel,
     model_dict,
 )
-from bayes_design.utils import get_fixed_position_mask, sample_backbone_noise
+from bayes_design.utils import get_fixed_position_mask, sample_backbone_noise, sample_backbone_normal_modes
 
 
 def test_model_dict_has_core_models():
@@ -94,6 +94,26 @@ def test_sample_backbone_noise():
     struct_nan = struct.clone()
     struct_nan[0, 0, 0] = float("nan")
     assert torch.isnan(sample_backbone_noise(struct_nan, 3, 0.3)[:, 0, 0, 0]).all()
+
+
+def test_sample_backbone_normal_modes():
+    # Idealized alpha-helix CA trace so the elastic network is well connected.
+    i = np.arange(30)
+    theta = np.deg2rad(100.0) * i
+    ca = np.stack([2.3 * np.cos(theta), 2.3 * np.sin(theta), 1.5 * i], axis=1)
+    struct = torch.tensor(np.stack([ca, ca, ca, ca], axis=1), dtype=torch.float32)  # N, CA, C, O all at CA for the test
+
+    exact = sample_backbone_normal_modes(struct, 4, rmsd=0.0)
+    assert exact.shape == (4, 30, 4, 3)
+    assert torch.allclose(exact, struct.unsqueeze(0).expand(4, 30, 4, 3))
+
+    out = sample_backbone_normal_modes(struct, 16, rmsd=0.6)
+    ca_rmsd = torch.sqrt(((out[:, :, 1, :] - struct[None, :, 1, :]) ** 2).sum(-1).mean(-1))
+    assert torch.allclose(ca_rmsd, torch.full((16,), 0.6), atol=1e-4)
+
+    struct_nan = struct.clone()
+    struct_nan[0, 0, 0] = float("nan")
+    assert torch.isnan(sample_backbone_normal_modes(struct_nan, 3, rmsd=0.5)[:, 0, 0, 0]).all()
 
 
 def test_backbone_ensemble_reduces_to_inner():

@@ -46,6 +46,52 @@ def sample_backbone_noise(struct, n_samples, sigma, generator=None):
     return copies + noise * sigma
 
 
+def _anm_modes(ca, cutoff, n_modes):
+    """Low-frequency anisotropic-network-model modes of a CA trace.
+
+    Returns ``(eigenvalues, displacement_vectors)`` for the ``n_modes`` softest internal
+    modes, excluding the six rigid-body modes. ``displacement_vectors`` is (n_modes, m, 3).
+    """
+    m = ca.shape[0]
+    diff = ca[None, :, :] - ca[:, None, :]
+    dist2 = (diff**2).sum(-1)
+    within = (dist2 <= cutoff**2) & (dist2 > 0)
+    hessian = np.zeros((3 * m, 3 * m))
+    for i, j in zip(*np.where(within)):
+        block = -np.outer(diff[i, j], diff[i, j]) / dist2[i, j]
+        hessian[3 * i : 3 * i + 3, 3 * j : 3 * j + 3] = block
+        hessian[3 * i : 3 * i + 3, 3 * i : 3 * i + 3] -= block
+    eigvals, eigvecs = np.linalg.eigh(hessian)
+    sel = slice(6, 6 + n_modes)
+    return eigvals[sel], eigvecs[:, sel].T.reshape(-1, m, 3)
+
+
+def sample_backbone_normal_modes(struct, n_samples, rmsd=0.5, cutoff=12.0, n_modes=10, generator=None):
+    """Return ``n_samples`` copies of an (L, 4, 3) backbone deformed along elastic-network
+    normal modes, scaled to a target CA-RMSD (angstroms).
+
+    Collective, on-manifold backbone fluctuations from an anisotropic network model of the
+    CA trace (soft modes weighted by ``1/sqrt(lambda)``), unlike isotropic noise. Each
+    residue's four atoms translate with its CA displacement. NaN coordinates stay NaN.
+    """
+    copies = struct.unsqueeze(0).expand(n_samples, *struct.shape).clone()
+    if rmsd == 0:
+        return copies
+    ca = struct[:, 1, :].detach().cpu().numpy().astype(np.float64)
+    finite = np.isfinite(ca).all(axis=1)
+    eigvals, modes = _anm_modes(ca[finite], cutoff, min(n_modes, 3 * finite.sum() - 6))
+
+    gen = np.random.default_rng(None if generator is None else int(generator.initial_seed()))
+    weights = 1.0 / np.sqrt(np.clip(eigvals, 1e-6, None))
+    for s in range(n_samples):
+        u = np.einsum("k,kmd->md", gen.standard_normal(len(eigvals)) * weights, modes)
+        u *= rmsd / np.sqrt((u**2).sum(axis=1).mean())
+        disp = torch.zeros_like(struct[:, 0, :])
+        disp[torch.from_numpy(finite)] = torch.from_numpy(u).to(struct.dtype)
+        copies[s] += disp[:, None, :]
+    return copies
+
+
 def load_backbone_library(structures_dir, max_structures=None):
     """Load every PDB in a directory as a list of (L, 4, 3) backbone tensors.
 

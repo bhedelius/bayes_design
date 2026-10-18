@@ -123,7 +123,9 @@ def score_variants(args):
     device = torch.device(f"cuda:{args.device}" if torch.cuda.is_available() else "cpu")
     num_model = BACKENDS["protein_mpnn"](device=device)
     ens_model = (
-        BACKENDS["backbone_ensemble"](device=device, n_samples=args.n_ensemble, sigma=args.ensemble_sigma)
+        BACKENDS["backbone_ensemble"](
+            device=device, n_samples=args.n_ensemble, sigma=args.ensemble_sigma, sampler=args.ensemble_sampler
+        )
         if "backbone_ensemble" in args.denominators
         else None
     )
@@ -283,7 +285,10 @@ def _build_parser():
         "--max-variants", type=int, default=None, help="Cap variants per domain (excludes the wild type)."
     )
     parser.add_argument("--n-ensemble", type=int, default=8)
-    parser.add_argument("--ensemble-sigma", type=float, default=0.1)
+    parser.add_argument(
+        "--ensemble-sigma", type=float, default=0.1, help="Noise std, or target CA-RMSD for normal modes."
+    )
+    parser.add_argument("--ensemble-sampler", choices=["noise", "normal_modes"], default="noise")
     parser.add_argument(
         "--decoy-library", default=None, help="Directory of backbone PDBs for the backbone_library denominator."
     )
@@ -330,6 +335,7 @@ def main():
         "mask_type": args.mask_type,
         "n_ensemble": args.n_ensemble,
         "ensemble_sigma": args.ensemble_sigma,
+        "ensemble_sampler": args.ensemble_sampler,
         "decoy_library": args.decoy_library,
         "n_decoys": args.n_decoys,
         "leave_one_out": args.leave_one_out,
