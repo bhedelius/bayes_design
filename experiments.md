@@ -341,6 +341,63 @@ Provenance: commit `55d1291`; same subset, data, and scoring as above; normal-mo
 (`sample_backbone_normal_modes`, ANM on the CA trace, 12-angstrom cutoff, 10 soft modes);
 ribo Quadro RTX 5000 (device 1).
 
+#### Result: the leave-one-out decoy-library denominator (Fix 1) only ties XLNet
+The faithful Fix 1 test replaces the XLNet marginal with a genuinely diverse background:
+for each variant, `Z(seq)=E_b[p(seq|b)]` averaged over 16 non-native decoy backbones, with
+the variant's own domain held out of the pool (leave-one-out) to avoid self-contamination.
+On its own subset (14 domains / 14,349 variants) the three denominators are a near-tie, with
+the decoy library a hair above XLNet but well inside noise:
+
+| denominator | Pearson | Spearman |
+| --- | --- | --- |
+| numerator only | 0.411 | 0.470 |
+| XLNet (original) | 0.413 | 0.481 |
+| backbone library (leave-one-out) | 0.415 | 0.483 |
+
+The absolute correlations are lower than the full-set table below because this is a different,
+larger variant sampling; the comparison is only valid within this run, against its own
+numerator baseline. The +0.002/+0.003 edge over XLNet does not clear the adoption bar.
+Provenance: commit `9022d3e`; `calib_loo.json` (created 2026-10-18); Tsuboyama Dataset1,
+`af_pdbs` structures; `n_decoys=16`, leave-one-out; ribo Quadro RTX 5000.
+
+### Theory-review verdict (Fix 1-3): the original objective is not beaten
+Validated against the Tsuboyama ground-truth Delta G data (within-domain `ddG` ranking,
+700 variants / 14 domains), none of the three theory-review fixes improves on the original
+BayesDesign objective (ProteinMPNN numerator / XLNet `p(seq)` denominator). Best result per
+approach:
+
+| Objective / feature | Pearson | Spearman | verdict |
+| --- | --- | --- | --- |
+| numerator only (ProteinMPNN) | 0.517 | 0.553 | baseline |
+| **+ XLNet denominator (original `bayes_design`)** | **0.566** | **0.586** | **best** |
+| + noise self-consistent denominator (Fix 1) | <= baseline | <= baseline | dead |
+| + decoy-library denominator (Fix 1, leave-one-out) | ~ XLNet* | ~ XLNet* | no gain |
+| Fix 3 noise-ensemble numerator | <= baseline | <= baseline | dead |
+| Fix 3 normal-mode ensemble numerator (0.6 A) | 0.552 | 0.561 | still < XLNet |
+
+*The leave-one-out decoy-library row is measured on its own 14-domain / 14,349-variant subset
+(numerator 0.411, XLNet 0.413, decoy library 0.415); it ties XLNet within noise rather than
+beating it. See "the leave-one-out decoy-library denominator (Fix 1) only ties XLNet" above.
+
+- **Fix 1 (self-consistent denominator).** The review's central claim -- that a Monte
+  Carlo partition function `Z(seq)=E_b[p(seq|b)]` from the same inverse-folding model should
+  beat the "wrong object" XLNet marginal -- is not supported. The best-case background (a
+  leave-one-out decoy library of diverse non-native folds) only ties XLNet (within noise),
+  while Gaussian noise and normal-mode alternates fall at or below the bare numerator. The
+  reason is structural: a point mutation barely changes `p(seq | non-native backbone)`, so the
+  denominator difference within a domain carries almost no `ddG` signal.
+- **Fix 2 (Delta G calibration).** The calibration itself works and is the one keeper: it
+  fits the denominator weight `lambda` and inverse temperature `beta` by regression and
+  yields calibrated `ddG` predictions. It is also the instrument that established XLNet as
+  the best denominator (`lambda = -0.19`, `beta = 4.2`).
+- **Fix 3 (conformational entropy).** Averaging the likelihood over a backbone ensemble adds
+  at most a faint signal, and only with a physical (normal-mode) sampler; isotropic noise is
+  actively harmful. Never improves ranking over the single backbone, let alone XLNet.
+
+Per the project's adoption rule (Track B is adopted only if it significantly improves
+results), the bar is not met: the original BayesDesign objective stands. Fix 2's calibration
+machinery is retained as an analysis tool.
+
 ### Visualizing distribution shift
 ```
 bayes-design-experiment viz_probs --protein_id 1PIN --decode_order n_to_c --fixed_positions 34 34 --sequence KLPPGWEKRMSRSSGRVYYFNHITNASQFERPSG --results_path ./results/probs_viz_KLPP
