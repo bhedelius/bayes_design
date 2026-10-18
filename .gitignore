@@ -3,3 +3,8 @@ results/
 designed_seqs.pkl
 .vscode/launch.json
 
+# Downloaded benchmark structures, run logs, and model weights (fetchable / large)
+data/structures/
+logs/
+src/bayes_design/ligand_mpnn/model_params/
+
