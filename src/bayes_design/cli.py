@@ -53,7 +53,7 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Chain IDs of fixed partner chains for bound-target design. The design chain is scored "
         "in the complex context (ProteinMPNN) while the sequence prior stays single-chain; these "
         "chains are held fixed and only --design_regions positions (on the design chain) are designed.",
-        nargs="*",
+        nargs="+",
         default=None,
     )
     parser.add_argument(
@@ -163,6 +163,11 @@ def example_design(args: argparse.Namespace) -> dict:
     if args.context_chains:
         if args.pdb_path is None:
             raise ValueError("--context_chains requires a local --pdb_path complex structure.")
+        if args.model_name == "fold_specificity" or objective_uses_context(args.model_name):
+            raise ValueError(
+                "--context_chains supports single-structure complexes only; it is incompatible "
+                "with context-based objectives (fold_specificity, ligand models)."
+            )
         seq, struct, residue_idx, chain_encoding, design_len = get_protein_complex(
             args.pdb_path, args.design_chain, args.context_chains
         )
