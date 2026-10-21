@@ -146,7 +146,6 @@ def decode_combinations(
         top_sequences = []
         top_probs = []
         for i, combination in enumerate(combinations):
-            print(i)
             masked_seq = [*unmasked_seq]
             for position in combination:
                 masked_seq[position] = "-"
@@ -182,9 +181,6 @@ def decode_combinations(
                 min_index = np.argmin(top_probs)
                 top_probs[min_index] = log_prob_diff
                 top_sequences[min_index] = decoded_seq
-            print(log_prob_diff)
-            print(top_sequences)
-            print(top_probs)
 
         seq_log_probs.extend(top_probs)
         decoded_seqs.extend(top_sequences)
@@ -322,7 +318,6 @@ def sample_decode(
         mask_type = "bidirectional_mlm"
     current_seq = seq
     for idx in decode_order:
-        print("j:", idx)
         if fixed_position_mask[idx]:
             # Do not change this token
             continue
@@ -396,7 +391,6 @@ def beam_decode(
         mask_type = "bidirectional_mlm"
     top_candidates = [[list(seq), [0.0]]]
     for j, decode_idx in enumerate(decode_order):
-        print("j:", j)
         # If token is fixed, select the fixed token, regardless of probability
         if fixed_position_mask[decode_idx]:
             continue
