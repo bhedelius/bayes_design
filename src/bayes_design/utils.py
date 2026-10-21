@@ -46,6 +46,35 @@ def get_protein(pdb_code=None, pdb_path=None, structures_dir="./data/structures"
     return protein["seq"], struct
 
 
+def get_protein_complex(pdb_path, design_chain, context_chains):
+    """Get seq, backbone, and chain encoding for a complex: design chain then fixed context.
+
+    Returns ``(seq, struct, residue_idx, chain_encoding, design_len)``; the design chain leads so
+    its residue index stays plain 0-based (single-chain behavior is unchanged) while context chains
+    get the standard ProteinMPNN 100-residue inter-chain offset. ``design_len`` counts the leading
+    design-chain residues.
+    """
+    if not os.path.exists(pdb_path):
+        raise FileNotFoundError(f"PDB file not found: '{pdb_path}'")
+    chain_list = [design_chain, *context_chains]
+    protein = StructureDatasetPDB(parse_PDB(pdb_path, input_chain_list=chain_list), max_length=20000)[0]
+
+    seqs, structs, residue_idx, chain_encoding = [], [], [], []
+    for offset, letter in enumerate(chain_list):
+        if f"coords_chain_{letter}" not in protein:
+            raise ValueError(f"Chain '{letter}' not found in {pdb_path}.")
+        coords = protein[f"coords_chain_{letter}"]
+        xyz = torch.tensor(
+            [coords[f"N_chain_{letter}"], coords[f"CA_chain_{letter}"],
+             coords[f"C_chain_{letter}"], coords[f"O_chain_{letter}"]]
+        ).transpose(0, 1)
+        seqs.append(protein[f"seq_chain_{letter}"])
+        structs.append(xyz)
+        residue_idx.append(torch.arange(xyz.shape[0]) + 100 * offset)
+        chain_encoding.append(torch.full((xyz.shape[0],), offset + 1))
+    return "".join(seqs), torch.cat(structs), torch.cat(residue_idx), torch.cat(chain_encoding), structs[0].shape[0]
+
+
 def sample_backbone_noise(struct, n_samples, sigma, generator=None):
     """Return ``n_samples`` perturbed copies of an (L, 4, 3) backbone.
 

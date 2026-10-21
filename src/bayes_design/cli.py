@@ -8,7 +8,13 @@ import numpy as np
 import torch
 
 from bayes_design.decode import decode_algorithm_dict, decode_order_dict
-from bayes_design.model import build_model, model_dict, objective_uses_context
+from bayes_design.model import (
+    ProteinMPNNWrapper,
+    XLNetWrapper,
+    build_model,
+    model_dict,
+    objective_uses_context,
+)
 from bayes_design.utils import (
     align_and_crop,
     build_aa_allowed_mask,
@@ -16,6 +22,7 @@ from bayes_design.utils import (
     get_fixed_position_mask,
     get_ligand,
     get_protein,
+    get_protein_complex,
     load_config_and_merge,
     parse_design_regions_arg,
     resolve_protein_input,
@@ -35,6 +42,20 @@ def _build_parser() -> argparse.ArgumentParser:
         "--protein_id", help="The PDB id to fetch from RCSB (alternative to --pdb_path)", default=None
     )
     parser.add_argument("--pdb_path", help="Path to a local PDB file (takes priority over --protein_id)", default=None)
+    parser.add_argument(
+        "--design_chain",
+        help="Chain ID to design in bound-target (complex) design; defaults to 'A'. "
+        "Only used with --context_chains.",
+        default="A",
+    )
+    parser.add_argument(
+        "--context_chains",
+        help="Chain IDs of fixed partner chains for bound-target design. The design chain is scored "
+        "in the complex context (ProteinMPNN) while the sequence prior stays single-chain; these "
+        "chains are held fixed and only --design_regions positions (on the design chain) are designed.",
+        nargs="*",
+        default=None,
+    )
     parser.add_argument(
         "--design_regions",
         help='JSON of named designable regions with optional per-region allowed/excluded amino acids, e.g. '
@@ -136,8 +157,19 @@ def _build_parser() -> argparse.ArgumentParser:
 def example_design(args: argparse.Namespace) -> dict:
     device = torch.device(f"cuda:{args.device}" if (torch.cuda.is_available()) else "cpu")
 
-    # Get sequence and structure of protein to redesign (local --pdb_path or RCSB --protein_id)
-    seq, struct = resolve_protein_input(args)
+    # Get sequence and structure of protein to redesign (local --pdb_path or RCSB --protein_id).
+    # With --context_chains, build a complex: the design chain leads, partner chains are fixed context.
+    residue_idx = chain_encoding = None
+    if args.context_chains:
+        if args.pdb_path is None:
+            raise ValueError("--context_chains requires a local --pdb_path complex structure.")
+        seq, struct, residue_idx, chain_encoding, design_len = get_protein_complex(
+            args.pdb_path, args.design_chain, args.context_chains
+        )
+        args.protein_label = os.path.splitext(os.path.basename(args.pdb_path))[0]
+    else:
+        seq, struct = resolve_protein_input(args)
+        design_len = len(seq)
     orig_seq = seq
 
     # Context-aware objectives bind parsed structures/ligands at construction. Source
@@ -174,6 +206,13 @@ def example_design(args: argparse.Namespace) -> dict:
         ensemble_sigma=args.ensemble_sigma,
         decoy_library=args.decoy_library,
     )
+
+    if args.context_chains:
+        for model, _ in prob_model.terms:
+            if isinstance(model, ProteinMPNNWrapper):
+                model.residue_idx, model.chain_encoding = residue_idx, chain_encoding
+            elif isinstance(model, XLNetWrapper):
+                model.design_len = design_len
 
     if args.design_regions:
         fixed_position_mask, aa_allowed_mask = build_aa_allowed_mask(
@@ -232,6 +271,9 @@ def example_design(args: argparse.Namespace) -> dict:
                 aa_allowed_mask=aa_allowed_mask,
             )
             designed_seqs.append(designed_seq)
+
+    # In complex design the designed string spans the whole complex; keep only the design chain.
+    designed_seqs = [s[:design_len] for s in designed_seqs]
 
     os.makedirs(args.results_dir, exist_ok=True)
     with open(os.path.join(args.results_dir, f"{args.model_name}_{args.protein_label}_sequences.txt"), "w") as f:

@@ -46,6 +46,10 @@ class XLNetWrapper(ProbabilityModel):
         xlnet_vocab_dict["▁X"] = xlnet_vocab_dict["X"]
         self.canonical_idx_to_xlnet_idx = torch.tensor([xlnet_vocab_dict["▁" + aa] for aa in AMINO_ACID_ORDER])
 
+        # For complex (bound-target) design: score only the leading design chain, so the
+        # single-chain sequence prior never sees the fixed context chain. Unset = full sequence.
+        self.design_len = None
+
     def forward(
         self, seq, decode_order, token_to_decode, struct=None, mask_type="bidirectional_autoregressive", temperature=1.0
     ):
@@ -62,6 +66,12 @@ class XLNetWrapper(ProbabilityModel):
             probs ((20) torch.Tensor): a vector of probabilities for the next
                 token
         """
+        # Complex design: keep only the leading design chain and the decode positions within it
+        # (token_to_decode always lands in the design chain, which leads the sequence).
+        if self.design_len is not None:
+            seq = [s[: self.design_len] for s in seq]
+            decode_order = [i for i in decode_order if i < self.design_len]
+
         # Replace rare amino acids with "X"
         seq = [re.sub(r"[UZOB]", "X", s) for s in seq]
         # Huggingface XLNet expects a space-separated sequence
@@ -203,6 +213,11 @@ class ProteinMPNNWrapper(ProbabilityModel):
         # (e.g. the decoy fold in multi-state / conformational-specificity design).
         self.bound_struct = struct
 
+        # Optional per-residue chain breaks for complex (bound-target) design; when unset,
+        # all residues are treated as one chain with contiguous indices.
+        self.residue_idx = None
+        self.chain_encoding = None
+
         backbone_noise = 0.00  # Std of Gaussian noise added to backbone atoms
         # v_48_030 = version with 48 edges, 0.30A noise (package-relative path)
         checkpoint_path = Path(__file__).parent / "protein_mpnn" / "vanilla_model_weights" / "v_48_030.pt"
@@ -276,8 +291,12 @@ class ProteinMPNNWrapper(ProbabilityModel):
             isnan = torch.isnan(struct)
             struct[isnan] = 0.0
             chain_M = torch.ones(N, L).float().to(self.device)
-            chain_encoding_all = torch.ones(N, L).float().to(self.device)
-            residue_idx = torch.arange(L).expand(N, L).to(self.device)
+            if self.chain_encoding is not None:
+                chain_encoding_all = self.chain_encoding.float().to(self.device).expand(N, L)
+                residue_idx = self.residue_idx.to(self.device).expand(N, L)
+            else:
+                chain_encoding_all = torch.ones(N, L).float().to(self.device)
+                residue_idx = torch.arange(L).expand(N, L).to(self.device)
 
             _, logits = self.model(
                 X=struct,
